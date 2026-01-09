@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { Box, InputBase, Paper, List, ListItemButton, ListItemText, Typography } from '@mui/material'
+import { Box, InputBase, Paper, List, ListItemButton, ListItemText, ListItemIcon, Typography, Menu, MenuItem, Divider } from '@mui/material'
+import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
+import TerminalIcon from '@mui/icons-material/Terminal'
 import { api } from '../api/client'
 import { useDrawer } from '../hooks/useDrawer'
 import { useComposer, MOCK_SCHEMAS } from '../hooks/useComposer'
@@ -34,10 +36,37 @@ export default function CommandInput() {
   const [modules, setModules] = useState<string[]>(FALLBACK_MODULES)
   const [historyIndex, setHistoryIndex] = useState(-1)
   const [savedInput, setSavedInput] = useState('')
+  const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null)
+  const menuOpen = Boolean(menuAnchor)
   const inputRef = useRef<HTMLInputElement>(null)
   const { open } = useDrawer()
   const { startComposer } = useComposer()
   const { history, addCommand } = useCommandHistory()
+
+  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setMenuAnchor(event.currentTarget)
+  }
+
+  const handleMenuClose = () => {
+    setMenuAnchor(null)
+  }
+
+  const handleOpenModules = () => {
+    open({
+      title: 'Workspace Modules',
+      content: '',
+      mode: 'modules',
+    })
+    handleMenuClose()
+  }
+
+  const handleShowCommands = () => {
+    // Show all commands in autocomplete
+    setOptions(COMMANDS.map(c => ({ value: c.name, label: c.name, description: c.description })))
+    setShowAutocomplete(true)
+    handleMenuClose()
+    inputRef.current?.focus()
+  }
 
   // Fetch modules from API on mount
   useEffect(() => {
@@ -273,16 +302,74 @@ export default function CommandInput() {
       >
         <Box
           component="span"
+          onClick={handleMenuOpen}
           sx={{
-            color: 'text.secondary',
+            color: menuOpen ? 'primary.main' : 'text.secondary',
             fontFamily: '"JetBrains Mono", monospace',
             fontSize: '0.8125rem',
             mr: 0.5,
             userSelect: 'none',
+            cursor: 'pointer',
+            borderRadius: 0.5,
+            px: 0.5,
+            mx: -0.5,
+            '&:hover': {
+              color: 'primary.main',
+              bgcolor: 'rgba(124, 156, 255, 0.08)',
+            },
           }}
         >
           /
         </Box>
+        <Menu
+          anchorEl={menuAnchor}
+          open={menuOpen}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          sx={{ '& .MuiPaper-root': { minWidth: 180 } }}
+        >
+          <MenuItem onClick={handleOpenModules} sx={{ gap: 1.5 }}>
+            <ListItemIcon sx={{ minWidth: 'auto' }}>
+              <ViewModuleOutlinedIcon fontSize="small" />
+            </ListItemIcon>
+            Modules
+          </MenuItem>
+          <MenuItem onClick={handleShowCommands} sx={{ gap: 1.5 }}>
+            <ListItemIcon sx={{ minWidth: 'auto' }}>
+              <TerminalIcon fontSize="small" />
+            </ListItemIcon>
+            Commands
+          </MenuItem>
+          {history.length > 0 && (
+            <>
+              <Divider />
+              <Typography
+                variant="caption"
+                sx={{ px: 2, py: 0.5, color: 'text.secondary', display: 'block' }}
+              >
+                Recent
+              </Typography>
+              {history.slice(0, 5).map((cmd, i) => (
+                <MenuItem
+                  key={i}
+                  onClick={() => {
+                    setValue(cmd)
+                    handleMenuClose()
+                    inputRef.current?.focus()
+                  }}
+                  sx={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: '0.75rem',
+                    color: 'text.secondary',
+                  }}
+                >
+                  {cmd}
+                </MenuItem>
+              ))}
+            </>
+          )}
+        </Menu>
         <InputBase
           inputRef={inputRef}
           value={value}

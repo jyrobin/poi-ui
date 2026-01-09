@@ -4,6 +4,7 @@ import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
+import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
 import StatusBlock from '../blocks/StatusBlock'
 import SuggestionsBlock from '../blocks/SuggestionsBlock'
 import ComposerBlock from '../blocks/ComposerBlock'
@@ -11,15 +12,16 @@ import NotificationBlock from '../blocks/NotificationBlock'
 import CommandInput from './CommandInput'
 import { useThemeMode } from '../hooks/useThemeMode'
 import { useSSEStore } from '../api/useSSE'
-
-// Mock focus module for Phase 1
-const focusModule = 'voiceturn'
+import { useFocusModule } from '../hooks/useFocusModule'
+import { useDrawer } from '../hooks/useDrawer'
 
 export default function CommandPanel() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const menuOpen = Boolean(anchorEl)
   const { mode, toggle: toggleTheme } = useThemeMode()
   const connected = useSSEStore((s) => s.connected)
+  const focusModule = useFocusModule((s) => s.module)
+  const { open: openDrawer } = useDrawer()
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -27,6 +29,15 @@ export default function CommandPanel() {
 
   const handleMenuClose = () => {
     setAnchorEl(null)
+  }
+
+  const handleOpenModules = () => {
+    openDrawer({
+      title: 'Workspace Modules',
+      content: '',
+      mode: 'modules',
+    })
+    handleMenuClose()
   }
 
   return (
@@ -95,6 +106,10 @@ export default function CommandPanel() {
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
           transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         >
+          <MenuItem onClick={handleOpenModules} sx={{ gap: 1 }}>
+            <ViewModuleOutlinedIcon fontSize="small" />
+            Modules
+          </MenuItem>
           <MenuItem
             onClick={() => {
               toggleTheme()
@@ -116,13 +131,18 @@ export default function CommandPanel() {
 
         {/* Focus module */}
         <Chip
-          label={`@${focusModule}`}
+          label={focusModule ? `@${focusModule}` : 'no focus'}
           size="small"
+          onClick={handleOpenModules}
           sx={{
             fontFamily: '"JetBrains Mono", monospace',
             fontSize: '0.6875rem',
-            bgcolor: 'rgba(124, 156, 255, 0.1)',
-            color: 'primary.main',
+            bgcolor: focusModule ? 'rgba(124, 156, 255, 0.1)' : 'transparent',
+            color: focusModule ? 'primary.main' : 'text.secondary',
+            cursor: 'pointer',
+            '&:hover': {
+              bgcolor: focusModule ? 'rgba(124, 156, 255, 0.2)' : 'action.hover',
+            },
           }}
         />
       </Box>

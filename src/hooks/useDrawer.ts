@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type DrawerMode = 'output' | 'input' | 'detail' | 'module'
+export type DrawerMode = 'output' | 'input' | 'detail' | 'module' | 'modules'
 
 interface DrawerContent {
   title: string
