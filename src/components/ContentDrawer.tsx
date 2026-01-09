@@ -5,6 +5,7 @@ import { useDrawer } from '../hooks/useDrawer'
 import { useComposer } from '../hooks/useComposer'
 import { DRAWER_MIN_WIDTH, DRAWER_MAX_WIDTH } from '../theme'
 import MarkdownViewer from '../viewers/MarkdownViewer'
+import ModuleDetailViewer from '../viewers/ModuleDetailViewer'
 import TextSlotEditor from '../composer/TextSlotEditor'
 import SelectSlotEditor from '../composer/SelectSlotEditor'
 import ListSlotEditor from '../composer/ListSlotEditor'
@@ -96,6 +97,8 @@ export default function ContentDrawer() {
       >
         {content?.mode === 'input' && slot ? (
           renderSlotEditor()
+        ) : content?.mode === 'module' && content.moduleName ? (
+          <ModuleDetailViewer moduleName={content.moduleName} />
         ) : content?.content ? (
           <MarkdownViewer content={content.content} />
         ) : (

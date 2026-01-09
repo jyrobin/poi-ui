@@ -4,6 +4,7 @@ import { createAppTheme } from './theme'
 import { useThemeMode } from './hooks/useThemeMode'
 import { useSSE } from './api/useSSE'
 import { useStatusStore } from './hooks/useStatus'
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
 import AppShell from './components/AppShell'
 
 export default function App() {
@@ -17,6 +18,9 @@ export default function App() {
       updateFromSSE(event)
     },
   })
+
+  // Global keyboard shortcuts
+  useKeyboardShortcuts()
 
   return (
     <ThemeProvider theme={theme}>

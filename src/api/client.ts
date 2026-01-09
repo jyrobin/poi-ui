@@ -15,6 +15,16 @@ export interface Module {
   type: string
 }
 
+export interface ModuleInfo {
+  name: string
+  path: string
+  status?: 'ok' | 'stale' | 'missing'
+  documented: boolean
+  files?: string[]
+  designPath?: string
+  notesPath?: string
+}
+
 export interface Suggestion {
   command: string
   module: string

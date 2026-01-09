@@ -1,13 +1,22 @@
 import { useState } from 'react'
-import { Box, Typography, List, ListItemButton, ListItemText, ListItemIcon, CircularProgress } from '@mui/material'
+import { Box, Typography, List, ListItemButton, ListItemText, ListItemIcon, CircularProgress, Skeleton } from '@mui/material'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useDrawer } from '../hooks/useDrawer'
 import { useSuggestions } from '../hooks/useSuggestions'
 import { api, Suggestion } from '../api/client'
 
+function SuggestionSkeleton() {
+  return (
+    <Box sx={{ px: 2, py: 1 }}>
+      <Skeleton variant="text" width="70%" height={20} />
+      <Skeleton variant="text" width="50%" height={16} />
+    </Box>
+  )
+}
+
 export default function SuggestionsBlock() {
   const { open } = useDrawer()
-  const { suggestions } = useSuggestions()
+  const { suggestions, loading, error } = useSuggestions()
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
 
   const handleClick = async (suggestion: Suggestion, index: number) => {
@@ -51,7 +60,21 @@ export default function SuggestionsBlock() {
       </Box>
 
       <List dense sx={{ flex: 1, overflow: 'auto', py: 0 }}>
-        {suggestions.map((suggestion, index) => (
+        {loading && (
+          <>
+            <SuggestionSkeleton />
+            <SuggestionSkeleton />
+            <SuggestionSkeleton />
+          </>
+        )}
+        {error && (
+          <Box sx={{ px: 2, py: 1 }}>
+            <Typography variant="caption" sx={{ color: 'error.main' }}>
+              Failed to load suggestions
+            </Typography>
+          </Box>
+        )}
+        {!loading && !error && suggestions.map((suggestion, index) => (
           <ListItemButton
             key={index}
             onClick={() => handleClick(suggestion, index)}

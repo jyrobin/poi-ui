@@ -3,6 +3,7 @@ import { Box, InputBase, Paper, List, ListItemButton, ListItemText, Typography }
 import { api } from '../api/client'
 import { useDrawer } from '../hooks/useDrawer'
 import { useComposer, MOCK_SCHEMAS } from '../hooks/useComposer'
+import { useCommandHistory } from '../hooks/useCommandHistory'
 
 const COMMANDS = [
   { name: 'update', description: 'Update DESIGN.md/NOTES.md', hasSlots: true },
@@ -15,8 +16,8 @@ const COMMANDS = [
   { name: 'status', description: 'Workspace health overview', hasSlots: false },
 ]
 
-// Mock modules - will be replaced with API call
-const MODULES = ['poi', 'voiceturn', 'cliq', 'new-svc', 'utils']
+// Fallback modules if API fails
+const FALLBACK_MODULES = ['poi', 'voiceturn', 'cliq', 'new-svc', 'utils']
 
 interface AutocompleteOption {
   value: string
@@ -30,9 +31,20 @@ export default function CommandInput() {
   const [options, setOptions] = useState<AutocompleteOption[]>([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const [loading, setLoading] = useState(false)
+  const [modules, setModules] = useState<string[]>(FALLBACK_MODULES)
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [savedInput, setSavedInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const { open } = useDrawer()
   const { startComposer } = useComposer()
+  const { history, addCommand } = useCommandHistory()
+
+  // Fetch modules from API on mount
+  useEffect(() => {
+    api.getModules()
+      .then((data) => setModules(data.map((m) => m.name)))
+      .catch(() => setModules(FALLBACK_MODULES))
+  }, [])
 
   // Determine autocomplete context
   useEffect(() => {
@@ -41,7 +53,7 @@ export default function CommandInput() {
     if (atIndex >= 0 && atIndex === value.length - 1 || (atIndex >= 0 && !value.slice(atIndex).includes(' '))) {
       // Module autocomplete after @
       const query = value.slice(atIndex + 1).toLowerCase()
-      const filtered = MODULES
+      const filtered = modules
         .filter(m => m.toLowerCase().startsWith(query))
         .map(m => ({ value: m, label: `@${m}` }))
       setOptions(filtered)
@@ -58,7 +70,7 @@ export default function CommandInput() {
       setShowAutocomplete(false)
     }
     setSelectedIndex(0)
-  }, [value])
+  }, [value, modules])
 
   const handleSelect = (option: AutocompleteOption) => {
     const atIndex = value.lastIndexOf('@')
@@ -98,9 +110,41 @@ export default function CommandInput() {
       }
     }
 
+    // History navigation (only when autocomplete is not showing)
+    if (!showAutocomplete && history.length > 0) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        if (historyIndex === -1) {
+          setSavedInput(value)
+        }
+        const newIndex = Math.min(historyIndex + 1, history.length - 1)
+        setHistoryIndex(newIndex)
+        setValue(history[newIndex])
+        return
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        if (historyIndex <= 0) {
+          setHistoryIndex(-1)
+          setValue(savedInput)
+        } else {
+          const newIndex = historyIndex - 1
+          setHistoryIndex(newIndex)
+          setValue(history[newIndex])
+        }
+        return
+      }
+    }
+
     if (e.key === 'Enter' && value.trim() && !showAutocomplete) {
       e.preventDefault()
       await executeCommand()
+    }
+
+    if (e.key === 'Escape') {
+      setValue('')
+      setHistoryIndex(-1)
+      setSavedInput('')
     }
   }
 
@@ -112,6 +156,11 @@ export default function CommandInput() {
     const module = moduleMatch ? moduleMatch[1] : ''
 
     if (!command) return
+
+    // Add to history
+    addCommand(trimmed)
+    setHistoryIndex(-1)
+    setSavedInput('')
 
     // Check if this command has slots (composable)
     const commandDef = COMMANDS.find(c => c.name === command)
@@ -244,6 +293,7 @@ export default function CommandInput() {
           placeholder="command @module"
           disabled={loading}
           fullWidth
+          inputProps={{ 'data-command-input': true }}
           sx={{
             '& .MuiInputBase-input': {
               p: 0,
