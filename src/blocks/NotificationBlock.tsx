@@ -1,4 +1,4 @@
-import { Box, Typography, IconButton, Collapse } from '@mui/material'
+import { Box, Typography, IconButton, Collapse, Button } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
@@ -55,17 +55,37 @@ export default function NotificationBlock() {
                   mt: 0.25,
                 }}
               />
-              <Typography
-                variant="caption"
-                sx={{
-                  flex: 1,
-                  color: 'text.primary',
-                  fontSize: '0.75rem',
-                  lineHeight: 1.4,
-                }}
-              >
-                {notification.message}
-              </Typography>
+              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    color: 'text.primary',
+                    fontSize: '0.75rem',
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {notification.message}
+                </Typography>
+                {notification.action && (
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      notification.action?.handler()
+                      dismissNotification(notification.id)
+                    }}
+                    sx={{
+                      minWidth: 'auto',
+                      px: 1,
+                      py: 0,
+                      fontSize: '0.625rem',
+                      fontWeight: 600,
+                      textTransform: 'none',
+                    }}
+                  >
+                    {notification.action.label}
+                  </Button>
+                )}
+              </Box>
               <IconButton
                 size="small"
                 onClick={() => dismissNotification(notification.id)}

@@ -1,6 +1,14 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { api, StatusResponse } from '../api/client'
+import { api, StatusResponse, StatusFlags } from '../api/client'
+import { useSSEStore } from '../api/useSSE'
+
+const defaultFlags: StatusFlags = {
+  needsCollect: false,
+  hasStaleModules: false,
+  hasGaps: false,
+  hasPending: false,
+}
 
 const mockStatus: StatusResponse = {
   documented: 12,
@@ -8,6 +16,7 @@ const mockStatus: StatusResponse = {
   stale: ['voiceturn'],
   gaps: ['poi'],
   pending: ['new-svc', 'utils'],
+  flags: defaultFlags,
 }
 
 interface StatusState {
@@ -18,7 +27,6 @@ interface StatusState {
   setStatus: (status: StatusResponse) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
-  updateFromSSE: (data: { documented: number; total: number; stale: number }) => void
 }
 
 export const useStatusStore = create<StatusState>((set) => ({
@@ -29,21 +37,15 @@ export const useStatusStore = create<StatusState>((set) => ({
   setStatus: (status) => set({ status, lastUpdated: Date.now() }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
-  updateFromSSE: (data) =>
-    set((state) => ({
-      status: {
-        ...state.status,
-        documented: data.documented,
-        total: data.total,
-        // SSE only sends count, keep existing arrays but update if count changed
-      },
-      lastUpdated: Date.now(),
-    })),
 }))
 
 export function useStatus() {
   const { status, loading, error, setStatus, setLoading, setError } = useStatusStore()
 
+  // Subscribe to SSE status events
+  const lastStatusEvent = useSSEStore((s) => s.lastStatusEvent)
+
+  // Initial fetch
   useEffect(() => {
     let mounted = true
 
@@ -51,7 +53,14 @@ export function useStatus() {
       try {
         const data = await api.getStatus()
         if (mounted) {
-          setStatus(data)
+          // Ensure arrays are never null (Go returns null for nil slices)
+          setStatus({
+            ...data,
+            stale: data.stale ?? [],
+            gaps: data.gaps ?? [],
+            pending: data.pending ?? [],
+            flags: data.flags ?? defaultFlags,
+          })
           setError(null)
         }
       } catch (err) {
@@ -71,6 +80,20 @@ export function useStatus() {
       mounted = false
     }
   }, [setStatus, setLoading, setError])
+
+  // Update status when server pushes new status via SSE
+  useEffect(() => {
+    if (lastStatusEvent?.status) {
+      const data = lastStatusEvent.status
+      setStatus({
+        ...data,
+        stale: data.stale ?? [],
+        gaps: data.gaps ?? [],
+        pending: data.pending ?? [],
+        flags: data.flags ?? defaultFlags,
+      })
+    }
+  }, [lastStatusEvent, setStatus])
 
   return { status, loading, error }
 }

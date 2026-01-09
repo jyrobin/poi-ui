@@ -1,0 +1,133 @@
+module:
+  name: poi-ui
+  path: poi-ui
+  description: React web interface for POI - provides visual dashboard for documentation status, prompt suggestions, and command execution
+  status: active
+
+tags:
+  - react
+  - typescript
+  - web-ui
+  - mui
+  - zustand
+  - sse
+  - vite
+
+dependencies:
+  uses:
+    - poi (API server)
+    - react
+    - "@mui/material"
+    - zustand
+    - react-markdown
+    - vite
+  used_by: []
+
+entities:
+  - name: ApiClient
+    file: src/api/client.ts
+    tags:
+      - api
+      - http
+    description: Typed REST client for POI API endpoints
+
+  - name: useSSE
+    file: src/api/useSSE.ts
+    tags:
+      - sse
+      - realtime
+      - hook
+    description: SSE connection hook with reconnection and event store
+
+  - name: useDrawer
+    file: src/hooks/useDrawer.ts
+    tags:
+      - state
+      - drawer
+      - hook
+    description: Zustand store for drawer open/close state and content
+
+  - name: useStatus
+    file: src/hooks/useStatus.ts
+    tags:
+      - state
+      - status
+      - hook
+    description: Workspace status from API with SSE update subscription
+
+  - name: AppShell
+    file: src/components/AppShell.tsx
+    tags:
+      - layout
+      - component
+    description: Main layout with responsive command panel and drawer
+
+  - name: CommandPanel
+    file: src/components/CommandPanel.tsx
+    tags:
+      - component
+      - panel
+    description: Left panel containing status, suggestions, and composer blocks
+
+  - name: ContentDrawer
+    file: src/components/ContentDrawer.tsx
+    tags:
+      - component
+      - drawer
+    description: Right drawer for displaying prompts, module details, and actions
+
+  - name: SuggestionsBlock
+    file: src/blocks/SuggestionsBlock.tsx
+    tags:
+      - component
+      - suggestions
+    description: Displays ranked prompt suggestions with click-to-execute
+
+  - name: createAppTheme
+    file: src/theme/index.ts
+    tags:
+      - theme
+      - styling
+    description: MUI theme factory with GitHub-inspired dark/light modes
+
+gotchas:
+  - id: vite-proxy-required
+    tags:
+      - api
+      - cors
+      - vite
+    summary: API calls use relative URLs that require Vite proxy configuration
+    section: Vite Proxy Required for API Calls
+
+  - id: sse-event-names
+    tags:
+      - sse
+      - events
+    summary: SSE event listener names must exactly match server event names
+    section: SSE Events Must Match Server Event Names
+
+  - id: zustand-getstate
+    tags:
+      - zustand
+      - state
+      - closures
+    summary: Use getState() in callbacks to avoid stale closure issues
+    section: Zustand Store Access in Event Handlers
+
+  - id: drawer-action-update
+    tags:
+      - drawer
+      - state
+    summary: Drawer actions must use updateContent from store to update displayed content
+    section: Drawer Action Must Update Content via Store
+
+evaluation:
+  architecture_match: 0.90
+  boundary_clarity: A
+  dependencies_accuracy: 0.95
+  evaluated_at: "2026-01-09T00:00:00Z"
+  evaluated_by: claude-opus-4
+  key_types_coverage: 0.90
+  missing_docs: []
+  purpose_accuracy: 0.95
+  summary: Complete documentation for React web UI including architecture, gotchas, and key components

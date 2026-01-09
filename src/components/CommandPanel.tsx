@@ -8,12 +8,14 @@ import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
 import StatusBlock from '../blocks/StatusBlock'
 import SuggestionsBlock from '../blocks/SuggestionsBlock'
 import ComposerBlock from '../blocks/ComposerBlock'
-import NotificationBlock from '../blocks/NotificationBlock'
 import CommandInput from './CommandInput'
 import { useThemeMode } from '../hooks/useThemeMode'
 import { useSSEStore } from '../api/useSSE'
 import { useFocusModule } from '../hooks/useFocusModule'
 import { useDrawer } from '../hooks/useDrawer'
+import { useWorkspaceStore } from '../hooks/useWorkspace'
+import { useStatusStore } from '../hooks/useStatus'
+import { api } from '../api/client'
 
 export default function CommandPanel() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -22,6 +24,33 @@ export default function CommandPanel() {
   const connected = useSSEStore((s) => s.connected)
   const focusModule = useFocusModule((s) => s.module)
   const { open: openDrawer } = useDrawer()
+  const workspace = useWorkspaceStore((s) => s.workspace)
+  const status = useStatusStore((s) => s.status)
+
+  // Status dot color: gray=disconnected, green=connected, orange=needs collect
+  const needsCollect = status.flags?.needsCollect ?? false
+  const dotColor = !connected ? 'text.secondary' : needsCollect ? 'warning.main' : 'success.main'
+  const dotTooltip = !connected ? 'Disconnected' : needsCollect ? 'Docs updated - run collect' : 'Connected'
+
+  const handleDotClick = async () => {
+    if (needsCollect) {
+      // Refresh status from server
+      const { setStatus, setLoading } = useStatusStore.getState()
+      setLoading(true)
+      try {
+        const data = await api.getStatus()
+        setStatus({
+          ...data,
+          stale: data.stale ?? [],
+          gaps: data.gaps ?? [],
+          pending: data.pending ?? [],
+          flags: data.flags,
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+  }
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -90,13 +119,43 @@ export default function CommandPanel() {
               sx={{ fontSize: 18, color: 'text.secondary', ml: 0.25 }}
             />
           </Box>
-          <Tooltip title={connected ? 'Connected' : 'Disconnected'}>
-            <FiberManualRecordIcon
+          <Tooltip title={dotTooltip}>
+            <Box
+              onClick={handleDotClick}
               sx={{
-                fontSize: 8,
-                color: connected ? 'success.main' : 'text.secondary',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0.5,
+                cursor: needsCollect ? 'pointer' : 'default',
               }}
-            />
+            >
+              <FiberManualRecordIcon
+                sx={{
+                  fontSize: 8,
+                  color: dotColor,
+                  // Pulse animation when collect needed
+                  ...(needsCollect && {
+                    animation: 'pulse 1.5s infinite',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0.4 },
+                    },
+                  }),
+                }}
+              />
+              {workspace && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: '0.625rem',
+                    color: 'text.secondary',
+                  }}
+                >
+                  {workspace.split('/').pop()}
+                </Typography>
+              )}
+            </Box>
           </Tooltip>
         </Box>
         <Menu
@@ -146,9 +205,6 @@ export default function CommandPanel() {
           }}
         />
       </Box>
-
-      {/* Notifications */}
-      <NotificationBlock />
 
       {/* Content blocks */}
       <Box

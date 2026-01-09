@@ -9,7 +9,11 @@ export default function StatusBlock() {
   const { status, loading, error } = useStatus()
   const { open } = useDrawer()
   const coverage = status.total > 0 ? Math.round((status.documented / status.total) * 100) : 0
-  const hasIssues = status.stale.length > 0 || status.gaps.length > 0
+  // Handle null arrays from API (Go nil slices marshal as null)
+  const stale = status.stale ?? []
+  const gaps = status.gaps ?? []
+  const pending = status.pending ?? []
+  const hasIssues = stale.length > 0 || gaps.length > 0
 
   const handleModuleClick = (moduleName: string) => {
     open({
@@ -93,10 +97,10 @@ export default function StatusBlock() {
             '& .MuiChip-icon': { color: 'success.main' },
           }}
         />
-        {status.stale.length > 0 && (
+        {stale.length > 0 && (
           <Chip
             icon={<WarningAmberIcon sx={{ fontSize: 14 }} />}
-            label={`${status.stale.length} stale`}
+            label={`${stale.length} stale`}
             size="small"
             sx={{
               bgcolor: 'rgba(210, 153, 34, 0.15)',
@@ -105,10 +109,10 @@ export default function StatusBlock() {
             }}
           />
         )}
-        {status.gaps.length > 0 && (
+        {gaps.length > 0 && (
           <Chip
             icon={<ErrorOutlineIcon sx={{ fontSize: 14 }} />}
-            label={`${status.gaps.length} gaps`}
+            label={`${gaps.length} gaps`}
             size="small"
             sx={{
               bgcolor: 'rgba(248, 81, 73, 0.15)',
@@ -117,9 +121,9 @@ export default function StatusBlock() {
             }}
           />
         )}
-        {status.pending.length > 0 && (
+        {pending.length > 0 && (
           <Chip
-            label={`${status.pending.length} pending`}
+            label={`${pending.length} pending`}
             size="small"
             sx={{
               bgcolor: 'rgba(139, 148, 158, 0.15)',
@@ -132,7 +136,7 @@ export default function StatusBlock() {
       {/* Issue list */}
       {hasIssues && (
         <Box sx={{ mt: 1.5 }}>
-          {status.stale.map((mod) => (
+          {stale.map((mod) => (
             <Typography
               key={mod}
               variant="caption"
@@ -157,7 +161,7 @@ export default function StatusBlock() {
               <Box component="span" sx={{ color: 'text.secondary' }}> — stale</Box>
             </Typography>
           ))}
-          {status.gaps.map((mod) => (
+          {gaps.map((mod) => (
             <Typography
               key={mod}
               variant="caption"

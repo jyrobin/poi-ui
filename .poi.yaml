@@ -1,0 +1,5 @@
+version: 1
+module_name: poi-ui
+type: library
+summary_file: .summary.yaml
+summary_hash: c77ea215ef60cbcb0e10509d4ed6e6fdf329e1f396d9902bc669d7e19e99e06d

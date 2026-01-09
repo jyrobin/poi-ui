@@ -3,6 +3,7 @@ import { Box, Typography, List, ListItemButton, ListItemText, ListItemIcon, Circ
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useDrawer } from '../hooks/useDrawer'
 import { useSuggestions } from '../hooks/useSuggestions'
+import { useFocusModule } from '../hooks/useFocusModule'
 import { api, Suggestion } from '../api/client'
 
 function SuggestionSkeleton() {
@@ -17,25 +18,73 @@ function SuggestionSkeleton() {
 export default function SuggestionsBlock() {
   const { open } = useDrawer()
   const { suggestions, loading, error } = useSuggestions()
+  const setFocusModule = useFocusModule((s) => s.setModule)
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
 
   const handleClick = async (suggestion: Suggestion, index: number) => {
     setLoadingIndex(index)
+    // Set focus module when clicking a suggestion
+    if (suggestion.module) {
+      setFocusModule(suggestion.module)
+    }
+
+    // Handle workspace-level commands that can be run via API
+    if (suggestion.command === 'collect') {
+      const { updateContent } = useDrawer.getState()
+      open({
+        title: '/collect',
+        content: `# Collect\n\nThis updates \`.poi/modules.yaml\` with the latest module metadata from all registered modules.\n\n**What it does:**\n1. Scans for all registered modules (.poi.yaml)\n2. Extracts module info from .summary.yaml files\n3. Rebuilds tag index and dependency graph\n4. Updates .poi/modules.yaml\n\nClick **Run** to execute, or run manually:\n\n\`\`\`bash\npoi collect\n\`\`\``,
+        mode: 'output',
+        action: {
+          label: 'Run',
+          onClick: async () => {
+            updateContent(`# Collect\n\n*Running...*`)
+            try {
+              const result = await api.runCollect()
+              if (result.success) {
+                const output = [
+                  `# Collect`,
+                  ``,
+                  `**Success!** Collected ${result.modules} modules with ${result.tags} tags.`,
+                  ``,
+                  `## Modules:`,
+                  ...result.messages,
+                ].join('\n')
+                updateContent(output)
+              } else {
+                updateContent(`# Collect\n\n**Error:** ${result.error}`)
+              }
+            } catch (err) {
+              updateContent(`# Collect\n\n**Error:** ${err instanceof Error ? err.message : 'Failed to run collect'}`)
+            }
+          },
+        },
+      })
+      setLoadingIndex(null)
+      return
+    }
+
     try {
       const result = await api.generatePrompt({
         command: suggestion.command,
         module: suggestion.module,
       })
+      const title = suggestion.module
+        ? `/${suggestion.command} @${suggestion.module}`
+        : `/${suggestion.command}`
       open({
-        title: result.title || `/${suggestion.command} @${suggestion.module}`,
+        title: result.title || title,
         content: result.prompt,
         mode: 'output',
       })
     } catch {
       // Fallback to a simple placeholder if API fails
+      const title = suggestion.module
+        ? `/${suggestion.command} @${suggestion.module}`
+        : `/${suggestion.command}`
       open({
-        title: `/${suggestion.command} @${suggestion.module}`,
-        content: `# ${suggestion.command} ${suggestion.module}\n\n${suggestion.reason}\n\n(API unavailable - showing placeholder)`,
+        title,
+        content: `# ${suggestion.command}${suggestion.module ? ' ' + suggestion.module : ''}\n\n${suggestion.reason}\n\n(API unavailable - showing placeholder)`,
         mode: 'output',
       })
     } finally {
@@ -107,16 +156,29 @@ export default function SuggestionsBlock() {
                   >
                     /{suggestion.command}
                   </Typography>
-                  <Typography
-                    component="span"
-                    sx={{
-                      fontFamily: '"JetBrains Mono", monospace',
-                      fontSize: '0.75rem',
-                      color: 'text.primary',
-                    }}
-                  >
-                    @{suggestion.module}
-                  </Typography>
+                  {suggestion.module ? (
+                    <Typography
+                      component="span"
+                      sx={{
+                        fontFamily: '"JetBrains Mono", monospace',
+                        fontSize: '0.75rem',
+                        color: 'text.primary',
+                      }}
+                    >
+                      @{suggestion.module}
+                    </Typography>
+                  ) : (
+                    <Typography
+                      component="span"
+                      sx={{
+                        fontSize: '0.6875rem',
+                        color: 'text.secondary',
+                        fontStyle: 'italic',
+                      }}
+                    >
+                      workspace
+                    </Typography>
+                  )}
                   <Typography
                     component="span"
                     sx={{

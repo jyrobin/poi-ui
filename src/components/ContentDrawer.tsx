@@ -1,6 +1,8 @@
-import { Box, Typography, IconButton, Button } from '@mui/material'
+import { useState } from 'react'
+import { Box, Typography, IconButton, Button, CircularProgress } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useDrawer } from '../hooks/useDrawer'
 import { useComposer } from '../hooks/useComposer'
 import { DRAWER_MIN_WIDTH, DRAWER_MAX_WIDTH } from '../theme'
@@ -15,10 +17,22 @@ import ChoiceSlotEditor from '../composer/ChoiceSlotEditor'
 export default function ContentDrawer() {
   const { content, close } = useDrawer()
   const { schema } = useComposer()
+  const [actionLoading, setActionLoading] = useState(false)
 
   const handleCopy = () => {
     if (content?.content) {
       navigator.clipboard.writeText(content.content)
+    }
+  }
+
+  const handleAction = async () => {
+    if (content?.action) {
+      setActionLoading(true)
+      try {
+        await content.action.onClick()
+      } finally {
+        setActionLoading(false)
+      }
     }
   }
 
@@ -124,6 +138,21 @@ export default function ContentDrawer() {
             bgcolor: 'background.paper',
           }}
         >
+          {content.action && (
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <PlayArrowIcon />}
+              onClick={handleAction}
+              disabled={actionLoading}
+              sx={{
+                '&:hover': { bgcolor: 'success.dark' },
+              }}
+            >
+              {content.action.label}
+            </Button>
+          )}
           <Button
             size="small"
             variant="contained"

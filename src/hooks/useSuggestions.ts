@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, Suggestion } from '../api/client'
+import { useSSEStore } from '../api/useSSE'
 
 const mockSuggestions: Suggestion[] = [
   { command: 'fix', module: 'poi', score: 105, reason: 'Gaps detected in documentation' },
@@ -13,6 +14,10 @@ export function useSuggestions(n: number = 5) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Subscribe to SSE status events for server-pushed suggestions
+  const lastStatusEvent = useSSEStore((s) => s.lastStatusEvent)
+
+  // Initial fetch
   useEffect(() => {
     let mounted = true
 
@@ -20,7 +25,7 @@ export function useSuggestions(n: number = 5) {
       try {
         const data = await api.getSuggestions(n)
         if (mounted) {
-          setSuggestions(data.suggestions)
+          setSuggestions(data.suggestions?.slice(0, n) ?? [])
           setError(null)
         }
       } catch (err) {
@@ -41,6 +46,13 @@ export function useSuggestions(n: number = 5) {
       mounted = false
     }
   }, [n])
+
+  // Update suggestions when server pushes new status via SSE
+  useEffect(() => {
+    if (lastStatusEvent?.suggestions) {
+      setSuggestions(lastStatusEvent.suggestions.slice(0, n))
+    }
+  }, [lastStatusEvent, n])
 
   return { suggestions, loading, error }
 }

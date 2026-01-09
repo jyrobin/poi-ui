@@ -1,12 +1,25 @@
 // Use relative URL so Vite proxy handles it (works with any host)
 const API_BASE = '/api'
 
+export interface HealthResponse {
+  status: string
+  workspace: string
+}
+
+export interface StatusFlags {
+  needsCollect: boolean
+  hasStaleModules: boolean
+  hasGaps: boolean
+  hasPending: boolean
+}
+
 export interface StatusResponse {
   documented: number
   total: number
   stale: string[]
   gaps: string[]
   pending: string[]
+  flags?: StatusFlags
 }
 
 export interface Module {
@@ -78,6 +91,14 @@ export interface FileInfo {
   type: 'file' | 'directory'
 }
 
+export interface CollectResult {
+  success: boolean
+  modules: number
+  tags: number
+  messages: string[]
+  error?: string
+}
+
 class ApiClient {
   private base: string
 
@@ -99,6 +120,10 @@ class ApiClient {
     }
 
     return res.json()
+  }
+
+  async getHealth(): Promise<HealthResponse> {
+    return this.fetch<HealthResponse>('/health')
   }
 
   async getStatus(): Promise<StatusResponse> {
@@ -139,6 +164,12 @@ class ApiClient {
     return this.fetch<{ files: { path: string; content: string }[] }>('/files/read', {
       method: 'POST',
       body: JSON.stringify({ paths }),
+    })
+  }
+
+  async runCollect(): Promise<CollectResult> {
+    return this.fetch<CollectResult>('/commands/collect', {
+      method: 'POST',
     })
   }
 }

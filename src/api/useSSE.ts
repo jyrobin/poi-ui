@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
+import { StatusResponse } from './client'
 
 // Use relative URL so Vite proxy handles it (works with any host)
 const SSE_URL = '/api/events'
@@ -12,6 +13,12 @@ export interface StatusChangedEvent {
   stale: number
 }
 
+export interface StatusEvent {
+  type: 'status'
+  status: StatusResponse
+  suggestions: { command: string; module: string; score: number; reason: string }[]
+}
+
 export interface FileChangedEvent {
   type: 'file_changed'
   path: string
@@ -20,20 +27,34 @@ export interface FileChangedEvent {
 
 export interface ModuleStaleEvent {
   type: 'module_stale'
+  path: string
   module: string
-  reason: string
 }
 
-export type SSEEvent = StatusChangedEvent | FileChangedEvent | ModuleStaleEvent
+export type SSEEvent = StatusChangedEvent | StatusEvent | FileChangedEvent | ModuleStaleEvent
+
+// Notification with optional action
+export interface Notification {
+  id: string
+  message: string
+  type: 'info' | 'warning' | 'error'
+  timestamp: number
+  action?: {
+    label: string
+    handler: () => void
+  }
+}
 
 // Connection state store
 interface SSEState {
   connected: boolean
   lastEvent: SSEEvent | null
-  notifications: Array<{ id: string; message: string; type: 'info' | 'warning' | 'error'; timestamp: number }>
+  lastStatusEvent: StatusEvent | null
+  notifications: Notification[]
   setConnected: (connected: boolean) => void
   setLastEvent: (event: SSEEvent) => void
-  addNotification: (message: string, type: 'info' | 'warning' | 'error') => void
+  setLastStatusEvent: (event: StatusEvent) => void
+  addNotification: (message: string, type: 'info' | 'warning' | 'error', action?: Notification['action']) => void
   dismissNotification: (id: string) => void
   clearNotifications: () => void
 }
@@ -41,14 +62,16 @@ interface SSEState {
 export const useSSEStore = create<SSEState>((set) => ({
   connected: false,
   lastEvent: null,
+  lastStatusEvent: null,
   notifications: [],
   setConnected: (connected) => set({ connected }),
   setLastEvent: (event) => set({ lastEvent: event }),
-  addNotification: (message, type) =>
+  setLastStatusEvent: (event) => set({ lastStatusEvent: event }),
+  addNotification: (message, type, action) =>
     set((state) => ({
       notifications: [
         ...state.notifications,
-        { id: crypto.randomUUID(), message, type, timestamp: Date.now() },
+        { id: crypto.randomUUID(), message, type, timestamp: Date.now(), action },
       ],
     })),
   dismissNotification: (id) =>
@@ -90,6 +113,7 @@ export function useSSE(options: UseSSEOptions = {}) {
         eventSourceRef.current = eventSource
 
         eventSource.onopen = () => {
+          console.log('[sse] Connection opened')
           setConnected(true)
           // Clear any pending reconnect
           if (reconnectTimeoutRef.current) {
@@ -98,7 +122,13 @@ export function useSSE(options: UseSSEOptions = {}) {
           }
         }
 
+        // Generic message handler to catch unnamed events
+        eventSource.onmessage = (e) => {
+          console.log('[sse] Unnamed event received:', e.data?.substring(0, 100))
+        }
+
         eventSource.onerror = (error) => {
+          console.log('[sse] Connection error:', error)
           setConnected(false)
           callbacksRef.current.onError?.(error)
 
@@ -107,6 +137,7 @@ export function useSSE(options: UseSSEOptions = {}) {
 
           // Schedule reconnect
           if (!reconnectTimeoutRef.current) {
+            console.log('[sse] Scheduling reconnect in', reconnectInterval, 'ms')
             reconnectTimeoutRef.current = window.setTimeout(() => {
               reconnectTimeoutRef.current = null
               connect()
@@ -149,9 +180,25 @@ export function useSSE(options: UseSSEOptions = {}) {
             data.type = 'module_stale'
             setLastEvent(data)
             callbacksRef.current.onModuleStale?.(data)
-            addNotification(`${data.module} is stale: ${data.reason}`, 'warning')
           } catch {
             // Ignore parse errors
+          }
+        })
+
+        // Handle full status updates from server (server-driven architecture)
+        eventSource.addEventListener('status', (e) => {
+          try {
+            console.log('[sse] Received status event:', e.data.substring(0, 200))
+            const data = JSON.parse(e.data) as StatusEvent
+            data.type = 'status'
+            console.log('[sse] Parsed status:', {
+              needsCollect: data.status?.flags?.needsCollect,
+              suggestionsCount: data.suggestions?.length,
+            })
+            setLastEvent(data)
+            useSSEStore.getState().setLastStatusEvent(data)
+          } catch (err) {
+            console.error('[sse] Error parsing status event:', err)
           }
         })
       } catch {
