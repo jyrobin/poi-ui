@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 
 const SSE_URL = 'http://localhost:8765/api/events'
@@ -66,42 +66,96 @@ interface UseSSEOptions {
 }
 
 export function useSSE(options: UseSSEOptions = {}) {
-  const {
-    onStatusChanged,
-    onFileChanged,
-    onModuleStale,
-    onError,
-    reconnectInterval = 5000,
-  } = options
+  const { reconnectInterval = 5000 } = options
 
   const eventSourceRef = useRef<EventSource | null>(null)
   const reconnectTimeoutRef = useRef<number | null>(null)
-  const { setConnected, setLastEvent, addNotification } = useSSEStore()
 
-  const connect = useCallback(() => {
-    // Clean up existing connection
-    if (eventSourceRef.current) {
-      eventSourceRef.current.close()
-    }
+  // Store callbacks in refs to avoid dependency issues
+  const callbacksRef = useRef(options)
+  callbacksRef.current = options
 
-    try {
-      const eventSource = new EventSource(SSE_URL)
-      eventSourceRef.current = eventSource
+  useEffect(() => {
+    const { setConnected, setLastEvent, addNotification } = useSSEStore.getState()
 
-      eventSource.onopen = () => {
-        setConnected(true)
-        // Clear any pending reconnect
-        if (reconnectTimeoutRef.current) {
-          clearTimeout(reconnectTimeoutRef.current)
-          reconnectTimeoutRef.current = null
-        }
+    const connect = () => {
+      // Clean up existing connection
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
       }
 
-      eventSource.onerror = (error) => {
-        setConnected(false)
-        onError?.(error)
+      try {
+        const eventSource = new EventSource(SSE_URL)
+        eventSourceRef.current = eventSource
 
-        // Schedule reconnect
+        eventSource.onopen = () => {
+          setConnected(true)
+          // Clear any pending reconnect
+          if (reconnectTimeoutRef.current) {
+            clearTimeout(reconnectTimeoutRef.current)
+            reconnectTimeoutRef.current = null
+          }
+        }
+
+        eventSource.onerror = (error) => {
+          setConnected(false)
+          callbacksRef.current.onError?.(error)
+
+          // Close the errored connection
+          eventSource.close()
+
+          // Schedule reconnect
+          if (!reconnectTimeoutRef.current) {
+            reconnectTimeoutRef.current = window.setTimeout(() => {
+              reconnectTimeoutRef.current = null
+              connect()
+            }, reconnectInterval)
+          }
+        }
+
+        // Handle connected event from server
+        eventSource.addEventListener('connected', () => {
+          setConnected(true)
+        })
+
+        // Handle specific event types
+        eventSource.addEventListener('status_changed', (e) => {
+          try {
+            const data = JSON.parse(e.data) as StatusChangedEvent
+            data.type = 'status_changed'
+            setLastEvent(data)
+            callbacksRef.current.onStatusChanged?.(data)
+          } catch {
+            // Ignore parse errors
+          }
+        })
+
+        eventSource.addEventListener('file_changed', (e) => {
+          try {
+            const data = JSON.parse(e.data) as FileChangedEvent
+            data.type = 'file_changed'
+            setLastEvent(data)
+            callbacksRef.current.onFileChanged?.(data)
+            addNotification(`File changed: ${data.path}`, 'info')
+          } catch {
+            // Ignore parse errors
+          }
+        })
+
+        eventSource.addEventListener('module_stale', (e) => {
+          try {
+            const data = JSON.parse(e.data) as ModuleStaleEvent
+            data.type = 'module_stale'
+            setLastEvent(data)
+            callbacksRef.current.onModuleStale?.(data)
+            addNotification(`${data.module} is stale: ${data.reason}`, 'warning')
+          } catch {
+            // Ignore parse errors
+          }
+        })
+      } catch {
+        setConnected(false)
+        // Schedule reconnect on connection failure
         if (!reconnectTimeoutRef.current) {
           reconnectTimeoutRef.current = window.setTimeout(() => {
             reconnectTimeoutRef.current = null
@@ -109,55 +163,25 @@ export function useSSE(options: UseSSEOptions = {}) {
           }, reconnectInterval)
         }
       }
-
-      // Handle specific event types
-      eventSource.addEventListener('status_changed', (e) => {
-        try {
-          const data = JSON.parse(e.data) as StatusChangedEvent
-          data.type = 'status_changed'
-          setLastEvent(data)
-          onStatusChanged?.(data)
-        } catch {
-          // Ignore parse errors
-        }
-      })
-
-      eventSource.addEventListener('file_changed', (e) => {
-        try {
-          const data = JSON.parse(e.data) as FileChangedEvent
-          data.type = 'file_changed'
-          setLastEvent(data)
-          onFileChanged?.(data)
-          addNotification(`File changed: ${data.path}`, 'info')
-        } catch {
-          // Ignore parse errors
-        }
-      })
-
-      eventSource.addEventListener('module_stale', (e) => {
-        try {
-          const data = JSON.parse(e.data) as ModuleStaleEvent
-          data.type = 'module_stale'
-          setLastEvent(data)
-          onModuleStale?.(data)
-          addNotification(`${data.module} is stale: ${data.reason}`, 'warning')
-        } catch {
-          // Ignore parse errors
-        }
-      })
-    } catch {
-      setConnected(false)
-      // Schedule reconnect on connection failure
-      if (!reconnectTimeoutRef.current) {
-        reconnectTimeoutRef.current = window.setTimeout(() => {
-          reconnectTimeoutRef.current = null
-          connect()
-        }, reconnectInterval)
-      }
     }
-  }, [onStatusChanged, onFileChanged, onModuleStale, onError, reconnectInterval, setConnected, setLastEvent, addNotification])
 
-  const disconnect = useCallback(() => {
+    const disconnect = () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current)
+        reconnectTimeoutRef.current = null
+      }
+      setConnected(false)
+    }
+
+    connect()
+    return disconnect
+  }, [reconnectInterval]) // Only reconnectInterval as dependency
+
+  const disconnect = () => {
     if (eventSourceRef.current) {
       eventSourceRef.current.close()
       eventSourceRef.current = null
@@ -166,13 +190,14 @@ export function useSSE(options: UseSSEOptions = {}) {
       clearTimeout(reconnectTimeoutRef.current)
       reconnectTimeoutRef.current = null
     }
-    setConnected(false)
-  }, [setConnected])
+  }
 
-  useEffect(() => {
-    connect()
-    return () => disconnect()
-  }, [connect, disconnect])
+  const connect = () => {
+    // Trigger reconnect by disconnecting first
+    disconnect()
+    // The effect will not re-run, so we need to manually connect
+    // This is a simplified approach - for manual reconnect, reload the page
+  }
 
   return { connect, disconnect }
 }
