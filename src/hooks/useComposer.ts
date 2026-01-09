@@ -10,8 +10,8 @@ const MOCK_SCHEMAS: Record<string, ComposerSchema> = {
     slots: [
       { name: 'problem', type: 'text', label: 'Problem', required: true, placeholder: 'Describe the issue...' },
       { name: 'modules', type: 'select', label: 'Modules', required: true, options: ['poi', 'voiceturn', 'cliq', 'new-svc'] },
-      { name: 'logs', type: 'list', label: 'Logs', required: false, placeholder: 'Add log file path...' },
-      { name: 'files', type: 'list', label: 'Files', required: false, placeholder: 'Add file path...' },
+      { name: 'logs', type: 'text', label: 'Logs', required: false, placeholder: 'Paste log output here...' },
+      { name: 'files', type: 'select', label: 'Files', required: false, options: [] }, // Options loaded dynamically
     ],
   },
   update: {
@@ -39,7 +39,7 @@ const MOCK_SCHEMAS: Record<string, ComposerSchema> = {
       { name: 'summary', type: 'text', label: 'Summary', required: true, placeholder: 'Brief incident summary...' },
       { name: 'root_cause', type: 'text', label: 'Root Cause', required: false, placeholder: 'What caused the issue...' },
       { name: 'fix', type: 'text', label: 'Fix', required: false, placeholder: 'How it was fixed...' },
-      { name: 'files', type: 'list', label: 'Files', required: false, placeholder: 'Add affected file...' },
+      { name: 'files', type: 'select', label: 'Files', required: false, options: [] }, // Options loaded dynamically
     ],
   },
 }
