@@ -1,4 +1,5 @@
-const API_BASE = 'http://localhost:8765/api'
+// Use relative URL so Vite proxy handles it (works with any host)
+const API_BASE = '/api'
 
 export interface StatusResponse {
   documented: number

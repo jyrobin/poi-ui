@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { create } from 'zustand'
 
-const SSE_URL = 'http://localhost:8765/api/events'
+// Use relative URL so Vite proxy handles it (works with any host)
+const SSE_URL = '/api/events'
 
 // SSE Event types
 export interface StatusChangedEvent {
