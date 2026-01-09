@@ -2,19 +2,12 @@ import { Box, Typography, Chip, LinearProgress } from '@mui/material'
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
-
-// Mock data for Phase 1
-const mockStatus = {
-  documented: 12,
-  total: 15,
-  stale: ['voiceturn'],
-  gaps: ['poi'],
-  pending: ['new-svc', 'utils'],
-}
+import { useStatus } from '../hooks/useStatus'
 
 export default function StatusBlock() {
-  const coverage = Math.round((mockStatus.documented / mockStatus.total) * 100)
-  const hasIssues = mockStatus.stale.length > 0 || mockStatus.gaps.length > 0
+  const { status } = useStatus()
+  const coverage = Math.round((status.documented / status.total) * 100)
+  const hasIssues = status.stale.length > 0 || status.gaps.length > 0
 
   return (
     <Box
@@ -31,7 +24,7 @@ export default function StatusBlock() {
             Documentation Coverage
           </Typography>
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-            {mockStatus.documented}/{mockStatus.total}
+            {status.documented}/{status.total}
           </Typography>
         </Box>
         <LinearProgress
@@ -53,7 +46,7 @@ export default function StatusBlock() {
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
         <Chip
           icon={<CheckCircleOutlineIcon sx={{ fontSize: 14 }} />}
-          label={`${mockStatus.documented} documented`}
+          label={`${status.documented} documented`}
           size="small"
           sx={{
             bgcolor: 'rgba(63, 185, 80, 0.15)',
@@ -61,10 +54,10 @@ export default function StatusBlock() {
             '& .MuiChip-icon': { color: 'success.main' },
           }}
         />
-        {mockStatus.stale.length > 0 && (
+        {status.stale.length > 0 && (
           <Chip
             icon={<WarningAmberIcon sx={{ fontSize: 14 }} />}
-            label={`${mockStatus.stale.length} stale`}
+            label={`${status.stale.length} stale`}
             size="small"
             sx={{
               bgcolor: 'rgba(210, 153, 34, 0.15)',
@@ -73,10 +66,10 @@ export default function StatusBlock() {
             }}
           />
         )}
-        {mockStatus.gaps.length > 0 && (
+        {status.gaps.length > 0 && (
           <Chip
             icon={<ErrorOutlineIcon sx={{ fontSize: 14 }} />}
-            label={`${mockStatus.gaps.length} gaps`}
+            label={`${status.gaps.length} gaps`}
             size="small"
             sx={{
               bgcolor: 'rgba(248, 81, 73, 0.15)',
@@ -85,9 +78,9 @@ export default function StatusBlock() {
             }}
           />
         )}
-        {mockStatus.pending.length > 0 && (
+        {status.pending.length > 0 && (
           <Chip
-            label={`${mockStatus.pending.length} pending`}
+            label={`${status.pending.length} pending`}
             size="small"
             sx={{
               bgcolor: 'rgba(139, 148, 158, 0.15)',
@@ -100,7 +93,7 @@ export default function StatusBlock() {
       {/* Issue list */}
       {hasIssues && (
         <Box sx={{ mt: 1.5 }}>
-          {mockStatus.stale.map((mod) => (
+          {status.stale.map((mod) => (
             <Typography
               key={mod}
               variant="caption"
@@ -113,7 +106,7 @@ export default function StatusBlock() {
               {mod} — stale
             </Typography>
           ))}
-          {mockStatus.gaps.map((mod) => (
+          {status.gaps.map((mod) => (
             <Typography
               key={mod}
               variant="caption"

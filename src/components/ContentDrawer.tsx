@@ -3,6 +3,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { useDrawer } from '../hooks/useDrawer'
 import { DRAWER_MIN_WIDTH, DRAWER_MAX_WIDTH } from '../theme'
+import MarkdownViewer from '../viewers/MarkdownViewer'
 
 export default function ContentDrawer() {
   const { content, close } = useDrawer()
@@ -63,20 +64,13 @@ export default function ContentDrawer() {
           p: 2,
         }}
       >
-        <Box
-          component="pre"
-          sx={{
-            fontFamily: '"JetBrains Mono", monospace',
-            fontSize: '0.75rem',
-            lineHeight: 1.6,
-            color: 'text.primary',
-            whiteSpace: 'pre-wrap',
-            wordBreak: 'break-word',
-            m: 0,
-          }}
-        >
-          {content?.content || 'No content selected'}
-        </Box>
+        {content?.content ? (
+          <MarkdownViewer content={content.content} />
+        ) : (
+          <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+            No content selected
+          </Typography>
+        )}
       </Box>
 
       {/* Drawer actions */}
