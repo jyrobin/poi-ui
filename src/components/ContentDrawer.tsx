@@ -2,15 +2,45 @@ import { Box, Typography, IconButton, Button } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { useDrawer } from '../hooks/useDrawer'
+import { useComposer } from '../hooks/useComposer'
 import { DRAWER_MIN_WIDTH, DRAWER_MAX_WIDTH } from '../theme'
 import MarkdownViewer from '../viewers/MarkdownViewer'
+import TextSlotEditor from '../composer/TextSlotEditor'
+import SelectSlotEditor from '../composer/SelectSlotEditor'
+import ListSlotEditor from '../composer/ListSlotEditor'
+import ChoiceSlotEditor from '../composer/ChoiceSlotEditor'
 
 export default function ContentDrawer() {
   const { content, close } = useDrawer()
+  const { schema } = useComposer()
 
   const handleCopy = () => {
     if (content?.content) {
       navigator.clipboard.writeText(content.content)
+    }
+  }
+
+  // Find slot definition for input mode
+  const slot = content?.mode === 'input' && content.slotName && schema
+    ? schema.slots.find((s) => s.name === content.slotName)
+    : null
+
+  const renderSlotEditor = () => {
+    if (!slot) return null
+
+    const handleDone = () => close()
+
+    switch (slot.type) {
+      case 'text':
+        return <TextSlotEditor slot={slot} onDone={handleDone} />
+      case 'select':
+        return <SelectSlotEditor slot={slot} onDone={handleDone} />
+      case 'list':
+        return <ListSlotEditor slot={slot} onDone={handleDone} />
+      case 'choice':
+        return <ChoiceSlotEditor slot={slot} onDone={handleDone} />
+      default:
+        return null
     }
   }
 
@@ -64,7 +94,9 @@ export default function ContentDrawer() {
           p: 2,
         }}
       >
-        {content?.content ? (
+        {content?.mode === 'input' && slot ? (
+          renderSlotEditor()
+        ) : content?.content ? (
           <MarkdownViewer content={content.content} />
         ) : (
           <Typography variant="body2" sx={{ color: 'text.secondary' }}>
@@ -73,43 +105,45 @@ export default function ContentDrawer() {
         )}
       </Box>
 
-      {/* Drawer actions */}
-      <Box
-        sx={{
-          display: 'flex',
-          gap: 1,
-          px: 2,
-          py: 1.5,
-          borderTop: 1,
-          borderColor: 'divider',
-          bgcolor: 'background.paper',
-        }}
-      >
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={<ContentCopyIcon />}
-          onClick={handleCopy}
+      {/* Drawer actions - only show for output mode */}
+      {content?.mode === 'output' && (
+        <Box
           sx={{
-            bgcolor: 'primary.main',
-            '&:hover': { bgcolor: 'primary.dark' },
-          }}
-        >
-          Copy to Clipboard
-        </Button>
-        <Button
-          size="small"
-          variant="outlined"
-          onClick={close}
-          sx={{
+            display: 'flex',
+            gap: 1,
+            px: 2,
+            py: 1.5,
+            borderTop: 1,
             borderColor: 'divider',
-            color: 'text.secondary',
-            '&:hover': { borderColor: 'text.secondary', bgcolor: 'transparent' },
+            bgcolor: 'background.paper',
           }}
         >
-          Close
-        </Button>
-      </Box>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<ContentCopyIcon />}
+            onClick={handleCopy}
+            sx={{
+              bgcolor: 'primary.main',
+              '&:hover': { bgcolor: 'primary.dark' },
+            }}
+          >
+            Copy to Clipboard
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={close}
+            sx={{
+              borderColor: 'divider',
+              color: 'text.secondary',
+              '&:hover': { borderColor: 'text.secondary', bgcolor: 'transparent' },
+            }}
+          >
+            Close
+          </Button>
+        </Box>
+      )}
     </Box>
   )
 }

@@ -37,6 +37,36 @@ export interface PromptResponse {
   title: string
 }
 
+// Composer types
+export type SlotType = 'text' | 'select' | 'list' | 'choice'
+
+export interface SlotDefinition {
+  name: string
+  type: SlotType
+  label: string
+  required: boolean
+  options?: string[] // for select/choice types
+  placeholder?: string
+}
+
+export interface ComposerSchema {
+  command: string
+  description: string
+  slots: SlotDefinition[]
+}
+
+export interface ComposerBuildRequest {
+  command: string
+  module: string
+  slots: Record<string, unknown>
+}
+
+export interface FileInfo {
+  path: string
+  name: string
+  type: 'file' | 'directory'
+}
+
 class ApiClient {
   private base: string
 
@@ -76,6 +106,28 @@ class ApiClient {
     return this.fetch<PromptResponse>('/prompt', {
       method: 'POST',
       body: JSON.stringify(request),
+    })
+  }
+
+  async getComposerSchema(command: string): Promise<ComposerSchema> {
+    return this.fetch<ComposerSchema>(`/composer/schema/${command}`)
+  }
+
+  async buildPrompt(request: ComposerBuildRequest): Promise<PromptResponse> {
+    return this.fetch<PromptResponse>('/composer/build', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  }
+
+  async listFiles(module: string): Promise<{ files: FileInfo[] }> {
+    return this.fetch<{ files: FileInfo[] }>(`/files/list?module=${encodeURIComponent(module)}`)
+  }
+
+  async readFiles(paths: string[]): Promise<{ files: { path: string; content: string }[] }> {
+    return this.fetch<{ files: { path: string; content: string }[] }>('/files/read', {
+      method: 'POST',
+      body: JSON.stringify({ paths }),
     })
   }
 }

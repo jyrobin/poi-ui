@@ -6,6 +6,7 @@ interface DrawerContent {
   title: string
   content: string
   mode: DrawerMode
+  slotName?: string // For input mode - which slot to edit
 }
 
 interface DrawerState {

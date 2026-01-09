@@ -2,15 +2,17 @@ import { useState, useRef, useEffect } from 'react'
 import { Box, InputBase, Paper, List, ListItemButton, ListItemText, Typography } from '@mui/material'
 import { api } from '../api/client'
 import { useDrawer } from '../hooks/useDrawer'
+import { useComposer, MOCK_SCHEMAS } from '../hooks/useComposer'
 
 const COMMANDS = [
-  { name: 'update', description: 'Update DESIGN.md/NOTES.md' },
-  { name: 'bootstrap', description: 'Create initial docs' },
-  { name: 'fix', description: 'Fix evaluation gaps' },
-  { name: 'investigate', description: 'Debug with context' },
-  { name: 'context', description: 'Gather navigation context' },
-  { name: 'evaluate', description: 'Evaluate documentation' },
-  { name: 'status', description: 'Workspace health overview' },
+  { name: 'update', description: 'Update DESIGN.md/NOTES.md', hasSlots: true },
+  { name: 'bootstrap', description: 'Create initial docs', hasSlots: false },
+  { name: 'fix', description: 'Fix evaluation gaps', hasSlots: false },
+  { name: 'investigate', description: 'Debug with context', hasSlots: true },
+  { name: 'context', description: 'Gather navigation context', hasSlots: true },
+  { name: 'evaluate', description: 'Evaluate documentation', hasSlots: false },
+  { name: 'incident', description: 'Record incident', hasSlots: true },
+  { name: 'status', description: 'Workspace health overview', hasSlots: false },
 ]
 
 // Mock modules - will be replaced with API call
@@ -30,6 +32,7 @@ export default function CommandInput() {
   const [loading, setLoading] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const { open } = useDrawer()
+  const { startComposer } = useComposer()
 
   // Determine autocomplete context
   useEffect(() => {
@@ -110,6 +113,16 @@ export default function CommandInput() {
 
     if (!command) return
 
+    // Check if this command has slots (composable)
+    const commandDef = COMMANDS.find(c => c.name === command)
+    if (commandDef?.hasSlots && MOCK_SCHEMAS[command]) {
+      // Start composer mode
+      startComposer(command, module)
+      setValue('')
+      return
+    }
+
+    // Simple command - generate prompt directly
     setLoading(true)
     try {
       const result = await api.generatePrompt({ command, module })

@@ -5,6 +5,7 @@ import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import StatusBlock from '../blocks/StatusBlock'
 import SuggestionsBlock from '../blocks/SuggestionsBlock'
+import ComposerBlock from '../blocks/ComposerBlock'
 import CommandInput from './CommandInput'
 import { useThemeMode } from '../hooks/useThemeMode'
 
@@ -123,6 +124,7 @@ export default function CommandPanel() {
         }}
       >
         <StatusBlock />
+        <ComposerBlock />
         <SuggestionsBlock />
       </Box>
 
