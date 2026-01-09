@@ -1,13 +1,16 @@
 import { useState } from 'react'
-import { Box, Typography, Menu, MenuItem, Chip, Divider } from '@mui/material'
+import { Box, Typography, Menu, MenuItem, Chip, Divider, Tooltip } from '@mui/material'
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
 import StatusBlock from '../blocks/StatusBlock'
 import SuggestionsBlock from '../blocks/SuggestionsBlock'
 import ComposerBlock from '../blocks/ComposerBlock'
+import NotificationBlock from '../blocks/NotificationBlock'
 import CommandInput from './CommandInput'
 import { useThemeMode } from '../hooks/useThemeMode'
+import { useSSEStore } from '../api/useSSE'
 
 // Mock focus module for Phase 1
 const focusModule = 'voiceturn'
@@ -16,6 +19,7 @@ export default function CommandPanel() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
   const menuOpen = Boolean(anchorEl)
   const { mode, toggle: toggleTheme } = useThemeMode()
+  const connected = useSSEStore((s) => s.connected)
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -47,32 +51,42 @@ export default function CommandPanel() {
         }}
       >
         {/* Brand with dropdown */}
-        <Box
-          onClick={handleMenuClick}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            cursor: 'pointer',
-            borderRadius: 1,
-            px: 0.75,
-            py: 0.25,
-            mx: -0.75,
-            '&:hover': { bgcolor: 'action.hover' },
-          }}
-        >
-          <Typography
-            variant="h6"
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box
+            onClick={handleMenuClick}
             sx={{
-              color: 'text.primary',
-              fontWeight: 600,
-              fontSize: '0.875rem',
+              display: 'flex',
+              alignItems: 'center',
+              cursor: 'pointer',
+              borderRadius: 1,
+              px: 0.75,
+              py: 0.25,
+              mx: -0.75,
+              '&:hover': { bgcolor: 'action.hover' },
             }}
           >
-            POI
-          </Typography>
-          <KeyboardArrowDownIcon
-            sx={{ fontSize: 18, color: 'text.secondary', ml: 0.25 }}
-          />
+            <Typography
+              variant="h6"
+              sx={{
+                color: 'text.primary',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+              }}
+            >
+              POI
+            </Typography>
+            <KeyboardArrowDownIcon
+              sx={{ fontSize: 18, color: 'text.secondary', ml: 0.25 }}
+            />
+          </Box>
+          <Tooltip title={connected ? 'Connected' : 'Disconnected'}>
+            <FiberManualRecordIcon
+              sx={{
+                fontSize: 8,
+                color: connected ? 'success.main' : 'text.secondary',
+              }}
+            />
+          </Tooltip>
         </Box>
         <Menu
           anchorEl={anchorEl}
@@ -112,6 +126,9 @@ export default function CommandPanel() {
           }}
         />
       </Box>
+
+      {/* Notifications */}
+      <NotificationBlock />
 
       {/* Content blocks */}
       <Box

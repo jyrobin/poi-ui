@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
+import { create } from 'zustand'
 import { api, StatusResponse } from '../api/client'
 
 const mockStatus: StatusResponse = {
@@ -9,10 +10,39 @@ const mockStatus: StatusResponse = {
   pending: ['new-svc', 'utils'],
 }
 
+interface StatusState {
+  status: StatusResponse
+  loading: boolean
+  error: string | null
+  lastUpdated: number | null
+  setStatus: (status: StatusResponse) => void
+  setLoading: (loading: boolean) => void
+  setError: (error: string | null) => void
+  updateFromSSE: (data: { documented: number; total: number; stale: number }) => void
+}
+
+export const useStatusStore = create<StatusState>((set) => ({
+  status: mockStatus,
+  loading: true,
+  error: null,
+  lastUpdated: null,
+  setStatus: (status) => set({ status, lastUpdated: Date.now() }),
+  setLoading: (loading) => set({ loading }),
+  setError: (error) => set({ error }),
+  updateFromSSE: (data) =>
+    set((state) => ({
+      status: {
+        ...state.status,
+        documented: data.documented,
+        total: data.total,
+        // SSE only sends count, keep existing arrays but update if count changed
+      },
+      lastUpdated: Date.now(),
+    })),
+}))
+
 export function useStatus() {
-  const [status, setStatus] = useState<StatusResponse>(mockStatus)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { status, loading, error, setStatus, setLoading, setError } = useStatusStore()
 
   useEffect(() => {
     let mounted = true
@@ -26,7 +56,6 @@ export function useStatus() {
         }
       } catch (err) {
         if (mounted) {
-          // Keep mock data on error
           setError(err instanceof Error ? err.message : 'Failed to fetch status')
         }
       } finally {
@@ -41,7 +70,7 @@ export function useStatus() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [setStatus, setLoading, setError])
 
   return { status, loading, error }
 }
