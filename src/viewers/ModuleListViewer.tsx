@@ -144,8 +144,9 @@ export default function ModuleListViewer() {
             </ListItemIcon>
             <ListItemText
               primary={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Typography
+                    component="span"
                     sx={{
                       fontFamily: '"JetBrains Mono", monospace',
                       fontSize: '0.8125rem',
@@ -170,8 +171,9 @@ export default function ModuleListViewer() {
                 </Box>
               }
               secondary={
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
+                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
                   <Typography
+                    component="span"
                     variant="caption"
                     sx={{
                       fontFamily: '"JetBrains Mono", monospace',
@@ -181,9 +183,10 @@ export default function ModuleListViewer() {
                   >
                     {mod.path}
                   </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
+                  <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, ml: 'auto' }}>
                     {getStatusIcon(mod.status)}
                     <Typography
+                      component="span"
                       variant="caption"
                       sx={{ fontSize: '0.625rem', color: getStatusColor(mod.status) }}
                     >
