@@ -6,6 +6,7 @@ import { api } from '../api/client'
 import { useDrawer } from '../hooks/useDrawer'
 import { useComposer, MOCK_SCHEMAS } from '../hooks/useComposer'
 import { useCommandHistory } from '../hooks/useCommandHistory'
+import { useFocusModule } from '../hooks/useFocusModule'
 
 const COMMANDS = [
   { name: 'update', description: 'Update DESIGN.md/NOTES.md', hasSlots: true },
@@ -42,6 +43,7 @@ export default function CommandInput() {
   const { open } = useDrawer()
   const { startComposer } = useComposer()
   const { history, addCommand } = useCommandHistory()
+  const focusModule = useFocusModule((s) => s.module)
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setMenuAnchor(event.currentTarget)
@@ -182,7 +184,8 @@ export default function CommandInput() {
     const parts = trimmed.split(/\s+/)
     const command = parts[0]
     const moduleMatch = trimmed.match(/@(\S+)/)
-    const module = moduleMatch ? moduleMatch[1] : ''
+    // Use focus module as default if no module specified
+    const module = moduleMatch ? moduleMatch[1] : (focusModule || '')
 
     if (!command) return
 
@@ -377,7 +380,7 @@ export default function CommandInput() {
           onKeyDown={handleKeyDown}
           onFocus={() => value && setShowAutocomplete(true)}
           onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
-          placeholder="command @module"
+          placeholder={focusModule ? `command (@${focusModule})` : 'command @module'}
           disabled={loading}
           fullWidth
           inputProps={{ 'data-command-input': true }}
