@@ -99,6 +99,90 @@ export interface CollectResult {
   error?: string
 }
 
+// Template Editor API types
+export interface TemplateListItem {
+  name: string
+  intent: string
+  description: string
+  source: 'builtin' | 'user'
+  params?: string[]
+}
+
+export interface TemplatesListResponse {
+  templates: TemplateListItem[]
+}
+
+export interface TemplateDetail {
+  name: string
+  intent: string
+  description: string
+  source: 'builtin' | 'user'
+  params?: string[]
+  raw: string
+  fragments?: string[]
+  datasets?: string[]
+  isCustom: boolean
+}
+
+export interface TemplatePreviewRequest {
+  module?: string
+  data?: Record<string, unknown>
+}
+
+export interface TemplatePreviewResponse {
+  name: string
+  rendered?: string
+  error?: string
+}
+
+export interface FragmentListItem {
+  name: string
+  category: string
+  description: string
+  required: boolean
+  source: 'builtin' | 'user'
+}
+
+export interface FragmentsListResponse {
+  fragments: FragmentListItem[]
+  byCategory?: Record<string, FragmentListItem[]>
+}
+
+export interface FragmentDetail {
+  name: string
+  category: string
+  description: string
+  required: boolean
+  condition?: string
+  source: 'builtin' | 'user'
+  raw: string
+  datasets?: string[]
+  usedBy?: string[]
+  isCustom: boolean
+}
+
+export interface DatasetInfo {
+  name: string
+  description: string
+  type: string
+  fields?: string[]
+  dynamic: boolean
+}
+
+export interface DatasetsListResponse {
+  datasets: DatasetInfo[]
+}
+
+export interface DatasetDetail {
+  name: string
+  description: string
+  type: string
+  fields?: string[]
+  dynamic: boolean
+  sample?: Record<string, unknown>
+  usedBy?: string[]
+}
+
 class ApiClient {
   private base: string
 
@@ -171,6 +255,43 @@ class ApiClient {
     return this.fetch<CollectResult>('/commands/collect', {
       method: 'POST',
     })
+  }
+
+  // Template Editor API methods
+  async getTemplates(intent?: string): Promise<TemplatesListResponse> {
+    const query = intent ? `?intent=${encodeURIComponent(intent)}` : ''
+    return this.fetch<TemplatesListResponse>(`/templates${query}`)
+  }
+
+  async getTemplate(name: string): Promise<TemplateDetail> {
+    return this.fetch<TemplateDetail>(`/templates/${encodeURIComponent(name)}`)
+  }
+
+  async previewTemplate(name: string, request?: TemplatePreviewRequest): Promise<TemplatePreviewResponse> {
+    return this.fetch<TemplatePreviewResponse>(`/templates/${encodeURIComponent(name)}/preview`, {
+      method: 'POST',
+      body: JSON.stringify(request ?? {}),
+    })
+  }
+
+  async getFragments(category?: string, grouped?: boolean): Promise<FragmentsListResponse> {
+    const params = new URLSearchParams()
+    if (category) params.set('category', category)
+    if (grouped) params.set('grouped', 'true')
+    const query = params.toString() ? `?${params}` : ''
+    return this.fetch<FragmentsListResponse>(`/fragments${query}`)
+  }
+
+  async getFragment(name: string): Promise<FragmentDetail> {
+    return this.fetch<FragmentDetail>(`/fragments/${encodeURIComponent(name)}`)
+  }
+
+  async getDatasets(): Promise<DatasetsListResponse> {
+    return this.fetch<DatasetsListResponse>('/datasets')
+  }
+
+  async getDataset(name: string): Promise<DatasetDetail> {
+    return this.fetch<DatasetDetail>(`/datasets/${encodeURIComponent(name)}`)
   }
 }
 

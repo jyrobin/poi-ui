@@ -9,6 +9,12 @@ import { DRAWER_MIN_WIDTH, DRAWER_MAX_WIDTH } from '../theme'
 import MarkdownViewer from '../viewers/MarkdownViewer'
 import ModuleDetailViewer from '../viewers/ModuleDetailViewer'
 import ModuleListViewer from '../viewers/ModuleListViewer'
+import TemplateListViewer from '../viewers/TemplateListViewer'
+import TemplateDetailViewer from '../viewers/TemplateDetailViewer'
+import FragmentListViewer from '../viewers/FragmentListViewer'
+import FragmentDetailViewer from '../viewers/FragmentDetailViewer'
+import DatasetListViewer from '../viewers/DatasetListViewer'
+import DatasetDetailViewer from '../viewers/DatasetDetailViewer'
 import TextSlotEditor from '../composer/TextSlotEditor'
 import SelectSlotEditor from '../composer/SelectSlotEditor'
 import ListSlotEditor from '../composer/ListSlotEditor'
@@ -116,6 +122,18 @@ export default function ContentDrawer() {
           <ModuleListViewer />
         ) : content?.mode === 'module' && content.moduleName ? (
           <ModuleDetailViewer moduleName={content.moduleName} />
+        ) : content?.mode === 'templates' ? (
+          <TemplateListViewer />
+        ) : content?.mode === 'template' && content.templateName ? (
+          <TemplateDetailViewer templateName={content.templateName} />
+        ) : content?.mode === 'fragments' ? (
+          <FragmentListViewer />
+        ) : content?.mode === 'fragment' && content.fragmentName ? (
+          <FragmentDetailViewer fragmentName={content.fragmentName} />
+        ) : content?.mode === 'datasets' ? (
+          <DatasetListViewer />
+        ) : content?.mode === 'dataset' && content.datasetName ? (
+          <DatasetDetailViewer datasetName={content.datasetName} />
         ) : content?.content ? (
           <MarkdownViewer content={content.content} />
         ) : (

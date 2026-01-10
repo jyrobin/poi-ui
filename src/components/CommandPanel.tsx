@@ -5,6 +5,9 @@ import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
 import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
+import CodeIcon from '@mui/icons-material/Code'
+import ExtensionIcon from '@mui/icons-material/Extension'
+import StorageIcon from '@mui/icons-material/Storage'
 import StatusBlock from '../blocks/StatusBlock'
 import SuggestionsBlock from '../blocks/SuggestionsBlock'
 import ComposerBlock from '../blocks/ComposerBlock'
@@ -65,6 +68,33 @@ export default function CommandPanel() {
       title: 'Workspace Modules',
       content: '',
       mode: 'modules',
+    })
+    handleMenuClose()
+  }
+
+  const handleOpenTemplates = () => {
+    openDrawer({
+      title: 'Templates',
+      content: '',
+      mode: 'templates',
+    })
+    handleMenuClose()
+  }
+
+  const handleOpenFragments = () => {
+    openDrawer({
+      title: 'Fragments',
+      content: '',
+      mode: 'fragments',
+    })
+    handleMenuClose()
+  }
+
+  const handleOpenDatasets = () => {
+    openDrawer({
+      title: 'Datasets',
+      content: '',
+      mode: 'datasets',
     })
     handleMenuClose()
   }
@@ -169,6 +199,20 @@ export default function CommandPanel() {
             <ViewModuleOutlinedIcon fontSize="small" />
             Modules
           </MenuItem>
+          <Divider />
+          <MenuItem onClick={handleOpenTemplates} sx={{ gap: 1 }}>
+            <CodeIcon fontSize="small" />
+            Templates
+          </MenuItem>
+          <MenuItem onClick={handleOpenFragments} sx={{ gap: 1 }}>
+            <ExtensionIcon fontSize="small" />
+            Fragments
+          </MenuItem>
+          <MenuItem onClick={handleOpenDatasets} sx={{ gap: 1 }}>
+            <StorageIcon fontSize="small" />
+            Datasets
+          </MenuItem>
+          <Divider />
           <MenuItem
             onClick={() => {
               toggleTheme()

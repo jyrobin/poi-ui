@@ -1,6 +1,17 @@
 import { create } from 'zustand'
 
-export type DrawerMode = 'output' | 'input' | 'detail' | 'module' | 'modules'
+export type DrawerMode =
+  | 'output'
+  | 'input'
+  | 'detail'
+  | 'module'
+  | 'modules'
+  | 'templates'    // Template list view
+  | 'template'     // Single template detail
+  | 'fragments'    // Fragment list view
+  | 'fragment'     // Single fragment detail
+  | 'datasets'     // Dataset list view
+  | 'dataset'      // Single dataset detail
 
 export interface DrawerAction {
   label: string
@@ -13,6 +24,9 @@ interface DrawerContent {
   mode: DrawerMode
   slotName?: string // For input mode - which slot to edit
   moduleName?: string // For module mode - which module to show
+  templateName?: string // For template mode - which template to show
+  fragmentName?: string // For fragment mode - which fragment to show
+  datasetName?: string // For dataset mode - which dataset to show
   action?: DrawerAction // Optional action button
 }
 
