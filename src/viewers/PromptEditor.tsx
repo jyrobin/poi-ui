@@ -18,12 +18,14 @@ import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/pris
 import MarkdownViewer from './MarkdownViewer'
 import { useDrawer, EditorTab } from '../hooks/useDrawer'
 import { useThemeMode } from '../hooks/useThemeMode'
+import type { TokenStats } from '../api/client'
 
 interface PromptEditorProps {
   content: string
   originalContent?: string
   templateSource?: string
   templateName?: string
+  serverStats?: TokenStats // Server-provided stats (more accurate)
   onCopy?: (content: string) => void
 }
 
@@ -44,6 +46,7 @@ export default function PromptEditor({
   originalContent,
   templateSource,
   templateName,
+  serverStats,
   onCopy,
 }: PromptEditorProps) {
   const {
@@ -83,13 +86,24 @@ export default function PromptEditor({
   }, [resetEdits])
 
   // Stats for the current content
+  // Use server stats if available and content hasn't been edited
   const stats = useMemo(() => {
+    // If we have server stats and content hasn't been edited, use them
+    if (serverStats && !hasEdits) {
+      return {
+        chars: serverStats.charCount,
+        words: serverStats.wordCount,
+        lines: serverStats.lineCount,
+        tokens: serverStats.estTokens,
+      }
+    }
+    // Otherwise calculate locally
     const chars = displayContent.length
     const words = displayContent.trim() ? displayContent.trim().split(/\s+/).length : 0
     const lines = displayContent.split('\n').length
     const tokens = estimateTokens(displayContent)
     return { chars, words, lines, tokens }
-  }, [displayContent])
+  }, [displayContent, serverStats, hasEdits])
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

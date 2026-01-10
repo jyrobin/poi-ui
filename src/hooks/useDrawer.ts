@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { TokenStats } from '../api/client'
 
 export type DrawerMode =
   | 'output'
@@ -35,6 +36,7 @@ interface DrawerContent {
   // For prompt-edit mode
   originalContent?: string // Original content before edits
   templateSource?: string // Raw template source for reference
+  stats?: TokenStats // Token statistics for prompts
 }
 
 interface DrawerState {

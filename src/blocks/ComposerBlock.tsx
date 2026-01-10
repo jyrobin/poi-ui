@@ -69,6 +69,7 @@ export default function ComposerBlock() {
         originalContent: result.prompt,
         templateSource: templateDetail?.raw,
         templateName,
+        stats: result.stats,
       } as any)
     } catch {
       // Generate a placeholder preview

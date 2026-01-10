@@ -137,11 +137,13 @@ export default function ContentDrawer() {
             originalContent={content.originalContent}
             templateSource={content.templateSource}
             templateName={content.templateName}
+            serverStats={content.stats}
           />
         ) : content?.mode === 'output' && content?.content ? (
           <PromptEditor
             content={content.content}
             originalContent={content.content}
+            serverStats={content.stats}
           />
         ) : content?.content ? (
           <MarkdownViewer content={content.content} />

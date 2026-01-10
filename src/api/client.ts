@@ -56,9 +56,18 @@ export interface PromptRequest {
   options?: Record<string, unknown>
 }
 
+// Token statistics for LLM usage estimation
+export interface TokenStats {
+  charCount: number
+  wordCount: number
+  lineCount: number
+  estTokens: number
+}
+
 export interface PromptResponse {
   prompt: string
   title: string
+  stats?: TokenStats
 }
 
 // Composer types
@@ -137,6 +146,7 @@ export interface TemplatePreviewResponse {
   name: string
   rendered?: string
   error?: string
+  stats?: TokenStats
 }
 
 export interface TemplateSaveRequest {
@@ -205,6 +215,7 @@ export interface FragmentPreviewResponse {
   name: string
   rendered?: string
   error?: string
+  stats?: TokenStats
 }
 
 export interface FragmentSaveRequest {
