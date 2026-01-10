@@ -139,6 +139,37 @@ export interface TemplatePreviewResponse {
   error?: string
 }
 
+export interface TemplateSaveRequest {
+  content: string
+}
+
+export interface TemplateSaveResponse {
+  name: string
+  path: string
+  isNew: boolean
+  message: string
+}
+
+export interface TemplateResetResponse {
+  name: string
+  message: string
+}
+
+export interface TemplateValidateRequest {
+  content: string
+}
+
+export interface TemplateValidateResponse {
+  valid: boolean
+  error?: string
+}
+
+export interface TemplateBuiltinResponse {
+  name: string
+  content: string
+  exists: boolean
+}
+
 export interface FragmentListItem {
   name: string
   category: string
@@ -287,6 +318,30 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(request ?? {}),
     })
+  }
+
+  async saveTemplate(name: string, content: string): Promise<TemplateSaveResponse> {
+    return this.fetch<TemplateSaveResponse>(`/templates/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    })
+  }
+
+  async resetTemplate(name: string): Promise<TemplateResetResponse> {
+    return this.fetch<TemplateResetResponse>(`/templates/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async validateTemplate(name: string, content: string): Promise<TemplateValidateResponse> {
+    return this.fetch<TemplateValidateResponse>(`/templates/${encodeURIComponent(name)}/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    })
+  }
+
+  async getBuiltinTemplate(name: string): Promise<TemplateBuiltinResponse> {
+    return this.fetch<TemplateBuiltinResponse>(`/templates/${encodeURIComponent(name)}/builtin`)
   }
 
   async getFragments(category?: string, grouped?: boolean): Promise<FragmentsListResponse> {

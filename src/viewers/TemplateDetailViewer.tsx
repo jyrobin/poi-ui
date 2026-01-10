@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import {
   Box,
   Typography,
@@ -9,10 +9,19 @@ import {
   IconButton,
   Tooltip,
   Paper,
+  Tabs,
+  Tab,
+  TextField,
+  Button,
+  Snackbar,
 } from '@mui/material'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import StorageIcon from '@mui/icons-material/Storage'
+import SaveIcon from '@mui/icons-material/Save'
+import RestoreIcon from '@mui/icons-material/Restore'
+import EditIcon from '@mui/icons-material/Edit'
+import VisibilityIcon from '@mui/icons-material/Visibility'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark, oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { api, TemplateDetail } from '../api/client'
@@ -23,20 +32,43 @@ interface TemplateDetailViewerProps {
   templateName: string
 }
 
+type ViewMode = 'view' | 'edit'
+
 export default function TemplateDetailViewer({ templateName }: TemplateDetailViewerProps) {
   const [template, setTemplate] = useState<TemplateDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<ViewMode>('view')
+  const [editContent, setEditContent] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  })
+  // Builtin content stored for potential future diff view
+  const [_builtinContent, setBuiltinContent] = useState<string | null>(null)
+  void _builtinContent // Reserved for future diff functionality
+
   const { open } = useDrawer()
   const mode = useThemeMode((s) => s.mode)
   const codeStyle = mode === 'dark' ? oneDark : oneLight
+
+  // Check if content has been modified
+  const hasChanges = editContent !== template?.raw
 
   useEffect(() => {
     const fetchTemplate = async () => {
       try {
         setLoading(true)
-        const data = await api.getTemplate(templateName)
+        const [data, builtin] = await Promise.all([
+          api.getTemplate(templateName),
+          api.getBuiltinTemplate(templateName),
+        ])
         setTemplate(data)
+        setEditContent(data.raw)
+        setBuiltinContent(builtin.exists ? builtin.content : null)
         setError(null)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load template')
@@ -64,6 +96,95 @@ export default function TemplateDetailViewer({ templateName }: TemplateDetailVie
     })
   }
 
+  const handleViewModeChange = (_: React.SyntheticEvent, newMode: ViewMode) => {
+    setViewMode(newMode)
+    setValidationError(null)
+  }
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setEditContent(e.target.value)
+    setValidationError(null)
+  }
+
+  const handleSave = useCallback(async () => {
+    if (!template) return
+
+    setSaving(true)
+    setValidationError(null)
+
+    try {
+      // Validate first
+      const validation = await api.validateTemplate(template.name, editContent)
+      if (!validation.valid) {
+        setValidationError(validation.error || 'Invalid template syntax')
+        setSaving(false)
+        return
+      }
+
+      // Save
+      const result = await api.saveTemplate(template.name, editContent)
+
+      // Refresh template data
+      const updatedTemplate = await api.getTemplate(templateName)
+      setTemplate(updatedTemplate)
+
+      setSnackbar({
+        open: true,
+        message: result.message,
+        severity: 'success',
+      })
+      setViewMode('view')
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err instanceof Error ? err.message : 'Failed to save template',
+        severity: 'error',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }, [template, editContent, templateName])
+
+  const handleReset = useCallback(async () => {
+    if (!template) return
+
+    setSaving(true)
+    try {
+      await api.resetTemplate(template.name)
+
+      // Refresh template data
+      const updatedTemplate = await api.getTemplate(templateName)
+      setTemplate(updatedTemplate)
+      setEditContent(updatedTemplate.raw)
+
+      setSnackbar({
+        open: true,
+        message: 'Template reset to builtin',
+        severity: 'success',
+      })
+      setViewMode('view')
+    } catch (err) {
+      setSnackbar({
+        open: true,
+        message: err instanceof Error ? err.message : 'Failed to reset template',
+        severity: 'error',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }, [template, templateName])
+
+  const handleDiscardChanges = () => {
+    if (template) {
+      setEditContent(template.raw)
+      setValidationError(null)
+    }
+  }
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((s) => ({ ...s, open: false }))
+  }
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -81,7 +202,7 @@ export default function TemplateDetailViewer({ templateName }: TemplateDetailVie
   }
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Header with back button */}
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
         <Tooltip title="Back to templates">
@@ -116,6 +237,15 @@ export default function TemplateDetailViewer({ templateName }: TemplateDetailVie
           variant="outlined"
           sx={{ height: 20, fontSize: '0.625rem' }}
         />
+        <Box sx={{ flex: 1 }} />
+        {/* Action buttons */}
+        {template.isCustom && (
+          <Tooltip title="Reset to builtin">
+            <IconButton size="small" onClick={handleReset} disabled={saving}>
+              <RestoreIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
 
       {/* Description */}
@@ -201,32 +331,130 @@ export default function TemplateDetailViewer({ templateName }: TemplateDetailVie
 
       <Divider sx={{ my: 2 }} />
 
-      {/* Template source */}
-      <Typography sx={{ fontSize: '0.75rem', fontWeight: 600, color: 'text.secondary', mb: 1 }}>
-        Template Source
-      </Typography>
-      <Paper
-        elevation={0}
-        sx={{
-          borderRadius: 1,
-          overflow: 'hidden',
-          border: 1,
-          borderColor: 'divider',
-        }}
-      >
-        <SyntaxHighlighter
-          language="django"
-          style={codeStyle}
-          customStyle={{
-            margin: 0,
-            fontSize: '0.75rem',
-            borderRadius: 0,
+      {/* View/Edit tabs */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Tabs
+          value={viewMode}
+          onChange={handleViewModeChange}
+          sx={{
+            minHeight: 32,
+            '& .MuiTab-root': {
+              minHeight: 32,
+              py: 0.5,
+              fontSize: '0.75rem',
+              textTransform: 'none',
+            },
           }}
-          showLineNumbers
         >
-          {template.raw}
-        </SyntaxHighlighter>
-      </Paper>
+          <Tab
+            label="View"
+            value="view"
+            icon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+            iconPosition="start"
+          />
+          <Tab
+            label="Edit"
+            value="edit"
+            icon={<EditIcon sx={{ fontSize: 14 }} />}
+            iconPosition="start"
+          />
+        </Tabs>
+        {viewMode === 'edit' && (
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            {hasChanges && (
+              <Button
+                size="small"
+                variant="text"
+                onClick={handleDiscardChanges}
+                sx={{ fontSize: '0.75rem', textTransform: 'none' }}
+              >
+                Discard
+              </Button>
+            )}
+            <Button
+              size="small"
+              variant="contained"
+              startIcon={<SaveIcon sx={{ fontSize: 14 }} />}
+              onClick={handleSave}
+              disabled={saving || !hasChanges}
+              sx={{ fontSize: '0.75rem', textTransform: 'none' }}
+            >
+              {saving ? 'Saving...' : 'Save'}
+            </Button>
+          </Box>
+        )}
+      </Box>
+
+      {/* Validation error */}
+      {validationError && (
+        <Alert severity="error" sx={{ mb: 1, py: 0.5, fontSize: '0.75rem' }}>
+          {validationError}
+        </Alert>
+      )}
+
+      {/* Template source - view or edit */}
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {viewMode === 'view' ? (
+          <Paper
+            elevation={0}
+            sx={{
+              borderRadius: 1,
+              overflow: 'hidden',
+              border: 1,
+              borderColor: 'divider',
+            }}
+          >
+            <SyntaxHighlighter
+              language="django"
+              style={codeStyle}
+              customStyle={{
+                margin: 0,
+                fontSize: '0.75rem',
+                borderRadius: 0,
+              }}
+              showLineNumbers
+            >
+              {template.raw}
+            </SyntaxHighlighter>
+          </Paper>
+        ) : (
+          <TextField
+            multiline
+            fullWidth
+            value={editContent}
+            onChange={handleContentChange}
+            placeholder="Enter template content..."
+            sx={{
+              height: '100%',
+              '& .MuiInputBase-root': {
+                height: '100%',
+                alignItems: 'flex-start',
+                fontFamily: '"JetBrains Mono", monospace',
+                fontSize: '0.8125rem',
+              },
+              '& .MuiInputBase-input': {
+                height: '100% !important',
+                overflow: 'auto !important',
+              },
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'background.default',
+              },
+            }}
+          />
+        )}
+      </Box>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   )
 }
