@@ -207,6 +207,42 @@ export interface FragmentPreviewResponse {
   error?: string
 }
 
+export interface FragmentSaveRequest {
+  content: string
+}
+
+export interface FragmentSaveResponse {
+  name: string
+  path: string
+  isNew: boolean
+  message: string
+}
+
+export interface FragmentCreateRequest {
+  name: string
+  content: string
+}
+
+export interface FragmentDeleteResponse {
+  name: string
+  message: string
+}
+
+export interface FragmentValidateRequest {
+  content: string
+}
+
+export interface FragmentValidateResponse {
+  valid: boolean
+  error?: string
+}
+
+export interface FragmentBuiltinResponse {
+  name: string
+  content: string
+  exists: boolean
+}
+
 export interface DatasetInfo {
   name: string
   description: string
@@ -361,6 +397,37 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify(request ?? {}),
     })
+  }
+
+  async saveFragment(name: string, content: string): Promise<FragmentSaveResponse> {
+    return this.fetch<FragmentSaveResponse>(`/fragments/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    })
+  }
+
+  async createFragment(name: string, content: string): Promise<FragmentSaveResponse> {
+    return this.fetch<FragmentSaveResponse>('/fragments', {
+      method: 'POST',
+      body: JSON.stringify({ name, content }),
+    })
+  }
+
+  async deleteFragment(name: string): Promise<FragmentDeleteResponse> {
+    return this.fetch<FragmentDeleteResponse>(`/fragments/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async validateFragment(name: string, content: string): Promise<FragmentValidateResponse> {
+    return this.fetch<FragmentValidateResponse>(`/fragments/${encodeURIComponent(name)}/validate`, {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    })
+  }
+
+  async getBuiltinFragment(name: string): Promise<FragmentBuiltinResponse> {
+    return this.fetch<FragmentBuiltinResponse>(`/fragments/${encodeURIComponent(name)}/builtin`)
   }
 
   async getDatasets(): Promise<DatasetsListResponse> {
