@@ -263,6 +263,25 @@ export interface DatasetDetail {
   dynamic: boolean
   sample?: Record<string, unknown>
   usedBy?: string[]
+  isCustom: boolean
+  raw?: string
+}
+
+export interface DatasetSaveResponse {
+  name: string
+  path: string
+  isNew: boolean
+  message: string
+}
+
+export interface DatasetDeleteResponse {
+  name: string
+  message: string
+}
+
+export interface DatasetValidateResponse {
+  valid: boolean
+  error?: string
 }
 
 class ApiClient {
@@ -436,6 +455,33 @@ class ApiClient {
 
   async getDataset(name: string): Promise<DatasetDetail> {
     return this.fetch<DatasetDetail>(`/datasets/${encodeURIComponent(name)}`)
+  }
+
+  async saveDataset(name: string, content: string): Promise<DatasetSaveResponse> {
+    return this.fetch<DatasetSaveResponse>(`/datasets/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content }),
+    })
+  }
+
+  async createDataset(name: string, content: string): Promise<DatasetSaveResponse> {
+    return this.fetch<DatasetSaveResponse>('/datasets', {
+      method: 'POST',
+      body: JSON.stringify({ name, content }),
+    })
+  }
+
+  async deleteDataset(name: string): Promise<DatasetDeleteResponse> {
+    return this.fetch<DatasetDeleteResponse>(`/datasets/${encodeURIComponent(name)}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async validateDataset(content: string): Promise<DatasetValidateResponse> {
+    return this.fetch<DatasetValidateResponse>('/datasets/validate', {
+      method: 'POST',
+      body: JSON.stringify({ content }),
+    })
   }
 }
 
