@@ -62,7 +62,7 @@ export interface PromptResponse {
 }
 
 // Composer types
-export type SlotType = 'text' | 'select' | 'list' | 'choice'
+export type SlotType = 'text' | 'select' | 'list' | 'choice' | 'fragment'
 
 export interface SlotDefinition {
   name: string
@@ -71,6 +71,9 @@ export interface SlotDefinition {
   required: boolean
   options?: string[] // for select/choice types
   placeholder?: string
+  dataset?: string // for select slots - which dataset provides options
+  fragment?: string // for fragment slots - which fragment this toggles
+  description?: string // slot description
 }
 
 export interface ComposerSchema {
@@ -83,6 +86,7 @@ export interface ComposerBuildRequest {
   command: string
   module: string
   slots: Record<string, unknown>
+  overrides?: Record<string, string> // Edited content overrides for fragments/slots
 }
 
 export interface FileInfo {
@@ -159,6 +163,17 @@ export interface FragmentDetail {
   datasets?: string[]
   usedBy?: string[]
   isCustom: boolean
+}
+
+export interface FragmentPreviewRequest {
+  module?: string
+  data?: Record<string, unknown>
+}
+
+export interface FragmentPreviewResponse {
+  name: string
+  rendered?: string
+  error?: string
 }
 
 export interface DatasetInfo {
@@ -284,6 +299,13 @@ class ApiClient {
 
   async getFragment(name: string): Promise<FragmentDetail> {
     return this.fetch<FragmentDetail>(`/fragments/${encodeURIComponent(name)}`)
+  }
+
+  async previewFragment(name: string, request?: FragmentPreviewRequest): Promise<FragmentPreviewResponse> {
+    return this.fetch<FragmentPreviewResponse>(`/fragments/${encodeURIComponent(name)}/preview`, {
+      method: 'POST',
+      body: JSON.stringify(request ?? {}),
+    })
   }
 
   async getDatasets(): Promise<DatasetsListResponse> {

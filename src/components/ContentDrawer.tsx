@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Box, Typography, IconButton, Button, CircularProgress } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
-import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useDrawer } from '../hooks/useDrawer'
 import { useComposer } from '../hooks/useComposer'
 import { DRAWER_MIN_WIDTH, DRAWER_MAX_WIDTH } from '../theme'
 import MarkdownViewer from '../viewers/MarkdownViewer'
+import PromptEditor from '../viewers/PromptEditor'
 import ModuleDetailViewer from '../viewers/ModuleDetailViewer'
 import ModuleListViewer from '../viewers/ModuleListViewer'
 import TemplateListViewer from '../viewers/TemplateListViewer'
@@ -19,17 +19,12 @@ import TextSlotEditor from '../composer/TextSlotEditor'
 import SelectSlotEditor from '../composer/SelectSlotEditor'
 import ListSlotEditor from '../composer/ListSlotEditor'
 import ChoiceSlotEditor from '../composer/ChoiceSlotEditor'
+import FragmentSlotEditor from '../composer/FragmentSlotEditor'
 
 export default function ContentDrawer() {
   const { content, close } = useDrawer()
   const { schema } = useComposer()
   const [actionLoading, setActionLoading] = useState(false)
-
-  const handleCopy = () => {
-    if (content?.content) {
-      navigator.clipboard.writeText(content.content)
-    }
-  }
 
   const handleAction = async () => {
     if (content?.action) {
@@ -42,8 +37,8 @@ export default function ContentDrawer() {
     }
   }
 
-  // Find slot definition for input mode
-  const slot = content?.mode === 'input' && content.slotName && schema
+  // Find slot definition for input or fragment-edit mode
+  const slot = (content?.mode === 'input' || content?.mode === 'fragment-edit') && content?.slotName && schema
     ? schema.slots.find((s) => s.name === content.slotName)
     : null
 
@@ -61,6 +56,8 @@ export default function ContentDrawer() {
         return <ListSlotEditor slot={slot} onDone={handleDone} />
       case 'choice':
         return <ChoiceSlotEditor slot={slot} onDone={handleDone} />
+      case 'fragment':
+        return <FragmentSlotEditor slot={slot} onDone={handleDone} />
       default:
         return null
     }
@@ -116,7 +113,7 @@ export default function ContentDrawer() {
           p: 2,
         }}
       >
-        {content?.mode === 'input' && slot ? (
+        {(content?.mode === 'input' || content?.mode === 'fragment-edit') && slot ? (
           renderSlotEditor()
         ) : content?.mode === 'modules' ? (
           <ModuleListViewer />
@@ -134,6 +131,18 @@ export default function ContentDrawer() {
           <DatasetListViewer />
         ) : content?.mode === 'dataset' && content.datasetName ? (
           <DatasetDetailViewer datasetName={content.datasetName} />
+        ) : content?.mode === 'prompt-edit' && content?.content ? (
+          <PromptEditor
+            content={content.content}
+            originalContent={content.originalContent}
+            templateSource={content.templateSource}
+            templateName={content.templateName}
+          />
+        ) : content?.mode === 'output' && content?.content ? (
+          <PromptEditor
+            content={content.content}
+            originalContent={content.content}
+          />
         ) : content?.content ? (
           <MarkdownViewer content={content.content} />
         ) : (
@@ -143,8 +152,8 @@ export default function ContentDrawer() {
         )}
       </Box>
 
-      {/* Drawer actions - only show for output mode */}
-      {content?.mode === 'output' && (
+      {/* Drawer actions - show for output/prompt-edit mode when there's an action */}
+      {(content?.mode === 'output' || content?.mode === 'prompt-edit') && content?.action && (
         <Box
           sx={{
             display: 'flex',
@@ -156,32 +165,18 @@ export default function ContentDrawer() {
             bgcolor: 'background.paper',
           }}
         >
-          {content.action && (
-            <Button
-              size="small"
-              variant="contained"
-              color="success"
-              startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <PlayArrowIcon />}
-              onClick={handleAction}
-              disabled={actionLoading}
-              sx={{
-                '&:hover': { bgcolor: 'success.dark' },
-              }}
-            >
-              {content.action.label}
-            </Button>
-          )}
           <Button
             size="small"
             variant="contained"
-            startIcon={<ContentCopyIcon />}
-            onClick={handleCopy}
+            color="success"
+            startIcon={actionLoading ? <CircularProgress size={16} color="inherit" /> : <PlayArrowIcon />}
+            onClick={handleAction}
+            disabled={actionLoading}
             sx={{
-              bgcolor: 'primary.main',
-              '&:hover': { bgcolor: 'primary.dark' },
+              '&:hover': { bgcolor: 'success.dark' },
             }}
           >
-            Copy to Clipboard
+            {content.action.label}
           </Button>
           <Button
             size="small"

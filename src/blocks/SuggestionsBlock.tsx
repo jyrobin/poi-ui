@@ -4,7 +4,11 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useDrawer } from '../hooks/useDrawer'
 import { useSuggestions } from '../hooks/useSuggestions'
 import { useFocusModule } from '../hooks/useFocusModule'
+import { useComposer } from '../hooks/useComposer'
 import { api, Suggestion } from '../api/client'
+
+// Commands that use slot-based composition
+const COMPOSER_COMMANDS = ['update', 'investigate', 'context', 'incident', 'fix']
 
 function SuggestionSkeleton() {
   return (
@@ -19,6 +23,7 @@ export default function SuggestionsBlock() {
   const { open } = useDrawer()
   const { suggestions, loading, error } = useSuggestions()
   const setFocusModule = useFocusModule((s) => s.setModule)
+  const startComposer = useComposer((s) => s.startComposer)
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
 
   const handleClick = async (suggestion: Suggestion, index: number) => {
@@ -26,6 +31,20 @@ export default function SuggestionsBlock() {
     // Set focus module when clicking a suggestion
     if (suggestion.module) {
       setFocusModule(suggestion.module)
+    }
+
+    // Handle slot-based composition commands
+    if (COMPOSER_COMMANDS.includes(suggestion.command)) {
+      try {
+        // Fetch schema from API and start composer
+        const schema = await api.getComposerSchema(suggestion.command)
+        startComposer(suggestion.command, suggestion.module || '', schema)
+      } catch {
+        // Fall back to mock schema if API unavailable
+        startComposer(suggestion.command, suggestion.module || '')
+      }
+      setLoadingIndex(null)
+      return
     }
 
     // Handle workspace-level commands that can be run via API

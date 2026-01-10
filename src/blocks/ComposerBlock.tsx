@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { Box, Typography, Button, IconButton, CircularProgress } from '@mui/material'
+import { Box, Typography, Button, IconButton, CircularProgress, Tooltip } from '@mui/material'
 import CloseIcon from '@mui/icons-material/Close'
+import CodeIcon from '@mui/icons-material/Code'
 import { useComposer } from '../hooks/useComposer'
 import { useDrawer } from '../hooks/useDrawer'
 import { api, SlotDefinition } from '../api/client'
 import SlotRow from '../composer/SlotRow'
 
 export default function ComposerBlock() {
-  const { command, module, schema, values, clearComposer } = useComposer()
+  const { command, module, schema, values, overrides, clearComposer, templateName } = useComposer()
   const { open } = useDrawer()
   const [loading, setLoading] = useState(false)
 
@@ -15,28 +16,60 @@ export default function ComposerBlock() {
     return null
   }
 
+  const handleViewTemplate = () => {
+    if (templateName) {
+      open({
+        title: templateName,
+        content: '',
+        mode: 'template',
+        templateName,
+      })
+    }
+  }
+
   const handleSlotClick = (slot: SlotDefinition) => {
+    // Fragment slots open fragment slot editor with Preview/Edit/Template tabs
+    if (slot.type === 'fragment') {
+      open({
+        title: slot.label,
+        content: '',
+        mode: 'fragment-edit',
+        slotName: slot.name,
+        fragmentName: slot.fragment || slot.name,
+      } as any)
+      return
+    }
+
+    // Regular slots open slot editor
     open({
       title: `Edit: ${slot.label}`,
-      content: '', // Will be replaced by slot editor
+      content: '',
       mode: 'input',
       slotName: slot.name,
-    } as any) // Extended drawer content
+    } as any)
   }
 
   const handlePreview = async () => {
     setLoading(true)
     try {
-      const result = await api.buildPrompt({
-        command,
-        module: module || '',
-        slots: values,
-      })
+      // Fetch both the built prompt and template source in parallel
+      const [result, templateDetail] = await Promise.all([
+        api.buildPrompt({
+          command,
+          module: module || '',
+          slots: values,
+          overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
+        }),
+        templateName ? api.getTemplate(templateName).catch(() => null) : Promise.resolve(null),
+      ])
       open({
         title: result.title || `/${command} @${module}`,
         content: result.prompt,
-        mode: 'output',
-      })
+        mode: 'prompt-edit',
+        originalContent: result.prompt,
+        templateSource: templateDetail?.raw,
+        templateName,
+      } as any)
     } catch {
       // Generate a placeholder preview
       const slotSummary = Object.entries(values)
@@ -47,8 +80,9 @@ export default function ComposerBlock() {
       open({
         title: `/${command} @${module}`,
         content: `# ${command} ${module}\n\n${schema.description}\n\n## Slot Values\n${slotSummary || '(no values set)'}\n\n(API unavailable - showing placeholder)`,
-        mode: 'output',
-      })
+        mode: 'prompt-edit',
+        originalContent: `# ${command} ${module}\n\n${schema.description}\n\n## Slot Values\n${slotSummary || '(no values set)'}\n\n(API unavailable - showing placeholder)`,
+      } as any)
     } finally {
       setLoading(false)
     }
@@ -61,6 +95,7 @@ export default function ComposerBlock() {
         command,
         module: module || '',
         slots: values,
+        overrides: Object.keys(overrides).length > 0 ? overrides : undefined,
       })
       await navigator.clipboard.writeText(result.prompt)
     } catch {
@@ -110,9 +145,16 @@ export default function ComposerBlock() {
             {schema.description}
           </Typography>
         </Box>
-        <IconButton size="small" onClick={clearComposer} sx={{ color: 'text.secondary' }}>
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          <Tooltip title="View template source">
+            <IconButton size="small" onClick={handleViewTemplate} sx={{ color: 'text.secondary' }}>
+              <CodeIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <IconButton size="small" onClick={clearComposer} sx={{ color: 'text.secondary' }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </Box>
 
       {/* Slot rows */}

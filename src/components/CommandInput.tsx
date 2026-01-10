@@ -4,7 +4,7 @@ import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import { api } from '../api/client'
 import { useDrawer } from '../hooks/useDrawer'
-import { useComposer, MOCK_SCHEMAS } from '../hooks/useComposer'
+import { useComposer } from '../hooks/useComposer'
 import { useCommandHistory } from '../hooks/useCommandHistory'
 import { useFocusModule } from '../hooks/useFocusModule'
 
@@ -196,9 +196,15 @@ export default function CommandInput() {
 
     // Check if this command has slots (composable)
     const commandDef = COMMANDS.find(c => c.name === command)
-    if (commandDef?.hasSlots && MOCK_SCHEMAS[command]) {
-      // Start composer mode
-      startComposer(command, module)
+    if (commandDef?.hasSlots) {
+      // Start composer mode - fetch schema from API
+      try {
+        const schema = await api.getComposerSchema(command)
+        startComposer(command, module, schema)
+      } catch {
+        // Fallback: start with empty schema, UI will show "no slots"
+        startComposer(command, module)
+      }
       setValue('')
       return
     }
