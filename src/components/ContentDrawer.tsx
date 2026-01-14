@@ -15,6 +15,7 @@ import FragmentListViewer from '../viewers/FragmentListViewer'
 import FragmentDetailViewer from '../viewers/FragmentDetailViewer'
 import DatasetListViewer from '../viewers/DatasetListViewer'
 import DatasetDetailViewer from '../viewers/DatasetDetailViewer'
+import ReportViewer, { type ReportType } from '../viewers/ReportViewer'
 import TextSlotEditor from '../composer/TextSlotEditor'
 import SelectSlotEditor from '../composer/SelectSlotEditor'
 import ListSlotEditor from '../composer/ListSlotEditor'
@@ -131,6 +132,8 @@ export default function ContentDrawer() {
           <DatasetListViewer />
         ) : content?.mode === 'dataset' && content.datasetName ? (
           <DatasetDetailViewer datasetName={content.datasetName} />
+        ) : content?.mode === 'report' && content.reportType ? (
+          <ReportViewer reportType={content.reportType as ReportType} module={content.moduleName} />
         ) : content?.mode === 'prompt-edit' && content?.content ? (
           <PromptEditor
             content={content.content}

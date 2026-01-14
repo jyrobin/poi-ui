@@ -15,6 +15,7 @@ export type DrawerMode =
   | 'dataset'      // Single dataset detail
   | 'prompt-edit'  // Prompt editing with preview/edit tabs
   | 'fragment-edit' // Fragment slot editing with preview/edit/template tabs
+  | 'report'       // Report view
 
 export type EditorTab = 'preview' | 'edit' | 'template'
 
@@ -32,6 +33,7 @@ interface DrawerContent {
   templateName?: string // For template mode - which template to show
   fragmentName?: string // For fragment mode - which fragment to show
   datasetName?: string // For dataset mode - which dataset to show
+  reportType?: string // For report mode - which report to show
   action?: DrawerAction // Optional action button
   // For prompt-edit mode
   originalContent?: string // Original content before edits

@@ -8,6 +8,13 @@ import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
 import CodeIcon from '@mui/icons-material/Code'
 import ExtensionIcon from '@mui/icons-material/Extension'
 import StorageIcon from '@mui/icons-material/Storage'
+import AssessmentIcon from '@mui/icons-material/Assessment'
+import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety'
+import CoverageIcon from '@mui/icons-material/DonutSmall'
+import AccountTreeIcon from '@mui/icons-material/AccountTree'
+import LocalOfferIcon from '@mui/icons-material/LocalOffer'
+import ReportProblemIcon from '@mui/icons-material/ReportProblem'
+import CategoryIcon from '@mui/icons-material/Category'
 import StatusBlock from '../blocks/StatusBlock'
 import SuggestionsBlock from '../blocks/SuggestionsBlock'
 import ComposerBlock from '../blocks/ComposerBlock'
@@ -22,7 +29,9 @@ import { api } from '../api/client'
 
 export default function CommandPanel() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const [reportsAnchorEl, setReportsAnchorEl] = useState<null | HTMLElement>(null)
   const menuOpen = Boolean(anchorEl)
+  const reportsMenuOpen = Boolean(reportsAnchorEl)
   const { mode, toggle: toggleTheme } = useThemeMode()
   const connected = useSSEStore((s) => s.connected)
   const focusModule = useFocusModule((s) => s.module)
@@ -96,6 +105,26 @@ export default function CommandPanel() {
       content: '',
       mode: 'datasets',
     })
+    handleMenuClose()
+  }
+
+  const handleReportsClick = (event: React.MouseEvent<HTMLElement>) => {
+    setReportsAnchorEl(event.currentTarget)
+  }
+
+  const handleReportsClose = () => {
+    setReportsAnchorEl(null)
+  }
+
+  const openReport = (reportType: string, title: string) => {
+    openDrawer({
+      title,
+      content: '',
+      mode: 'report',
+      reportType,
+      moduleName: focusModule || undefined,
+    })
+    handleReportsClose()
     handleMenuClose()
   }
 
@@ -213,6 +242,12 @@ export default function CommandPanel() {
             Datasets
           </MenuItem>
           <Divider />
+          <MenuItem onClick={handleReportsClick} sx={{ gap: 1 }}>
+            <AssessmentIcon fontSize="small" />
+            Reports
+            <KeyboardArrowDownIcon sx={{ fontSize: 16, ml: 'auto' }} />
+          </MenuItem>
+          <Divider />
           <MenuItem
             onClick={() => {
               toggleTheme()
@@ -230,6 +265,46 @@ export default function CommandPanel() {
           <Divider />
           <MenuItem onClick={handleMenuClose}>Help</MenuItem>
           <MenuItem onClick={handleMenuClose}>About</MenuItem>
+        </Menu>
+
+        {/* Reports Submenu */}
+        <Menu
+          anchorEl={reportsAnchorEl}
+          open={reportsMenuOpen}
+          onClose={handleReportsClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        >
+          <MenuItem onClick={() => openReport('session', 'Session Overview')} sx={{ gap: 1 }}>
+            <AssessmentIcon fontSize="small" />
+            Session
+          </MenuItem>
+          <MenuItem onClick={() => openReport('health', 'Health Check')} sx={{ gap: 1 }}>
+            <HealthAndSafetyIcon fontSize="small" />
+            Health
+          </MenuItem>
+          <MenuItem onClick={() => openReport('coverage', 'Coverage Report')} sx={{ gap: 1 }}>
+            <CoverageIcon fontSize="small" />
+            Coverage
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => openReport('deps', 'Dependencies')} sx={{ gap: 1 }}>
+            <AccountTreeIcon fontSize="small" />
+            Dependencies
+          </MenuItem>
+          <MenuItem onClick={() => openReport('tags', 'Tags')} sx={{ gap: 1 }}>
+            <LocalOfferIcon fontSize="small" />
+            Tags
+          </MenuItem>
+          <Divider />
+          <MenuItem onClick={() => openReport('gotchas', 'Gotchas')} sx={{ gap: 1 }}>
+            <ReportProblemIcon fontSize="small" />
+            Gotchas
+          </MenuItem>
+          <MenuItem onClick={() => openReport('entities', 'Entities')} sx={{ gap: 1 }}>
+            <CategoryIcon fontSize="small" />
+            Entities
+          </MenuItem>
         </Menu>
 
         {/* Focus module */}

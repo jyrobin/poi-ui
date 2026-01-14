@@ -19,6 +19,17 @@ const COMMANDS = [
   { name: 'status', description: 'Workspace health overview', hasSlots: false },
 ]
 
+// Report commands open the report viewer instead of generating prompts
+const REPORT_COMMANDS: Record<string, { title: string; type: string }> = {
+  session: { title: 'Session Overview', type: 'session' },
+  health: { title: 'Health Check', type: 'health' },
+  coverage: { title: 'Coverage Report', type: 'coverage' },
+  deps: { title: 'Dependencies', type: 'deps' },
+  tags: { title: 'Tags', type: 'tags' },
+  gotchas: { title: 'Gotchas', type: 'gotchas' },
+  entities: { title: 'Entities', type: 'entities' },
+}
+
 // Fallback modules if API fails
 const FALLBACK_MODULES = ['poi', 'voiceturn', 'cliq', 'new-svc', 'utils']
 
@@ -63,8 +74,10 @@ export default function CommandInput() {
   }
 
   const handleShowCommands = () => {
-    // Show all commands in autocomplete
-    setOptions(COMMANDS.map(c => ({ value: c.name, label: c.name, description: c.description })))
+    // Show all commands in autocomplete (prompts + reports)
+    const commandOptions = COMMANDS.map(c => ({ value: c.name, label: c.name, description: c.description }))
+    const reportOptions = Object.entries(REPORT_COMMANDS).map(([name, def]) => ({ value: name, label: name, description: def.title }))
+    setOptions([...commandOptions, ...reportOptions])
     setShowAutocomplete(true)
     handleMenuClose()
     inputRef.current?.focus()
@@ -92,9 +105,13 @@ export default function CommandInput() {
     } else if (!value.includes(' ') && !value.includes('@')) {
       // Command autocomplete at start
       const query = value.toLowerCase()
-      const filtered = COMMANDS
+      const commandOptions = COMMANDS
         .filter(c => c.name.startsWith(query))
         .map(c => ({ value: c.name, label: c.name, description: c.description }))
+      const reportOptions = Object.entries(REPORT_COMMANDS)
+        .filter(([name]) => name.startsWith(query))
+        .map(([name, def]) => ({ value: name, label: name, description: def.title }))
+      const filtered = [...commandOptions, ...reportOptions]
       setOptions(filtered)
       setShowAutocomplete(filtered.length > 0 && value.length > 0)
     } else {
@@ -193,6 +210,20 @@ export default function CommandInput() {
     addCommand(trimmed)
     setHistoryIndex(-1)
     setSavedInput('')
+
+    // Check if this is a report command
+    const reportDef = REPORT_COMMANDS[command]
+    if (reportDef) {
+      open({
+        title: reportDef.title,
+        content: '',
+        mode: 'report',
+        reportType: reportDef.type,
+        moduleName: module || undefined,
+      })
+      setValue('')
+      return
+    }
 
     // Check if this command has slots (composable)
     const commandDef = COMMANDS.find(c => c.name === command)

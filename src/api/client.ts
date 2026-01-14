@@ -295,6 +295,122 @@ export interface DatasetValidateResponse {
   error?: string
 }
 
+// Report API types
+export interface ReportHealthSummary {
+  score: number
+  grade: string
+  passing: number
+  warning: number
+  failing: number
+}
+
+export interface ReportModuleRow {
+  name: string
+  type: string
+  status: string
+  docs: string // "ok", "pending", "stale", "gaps"
+}
+
+export interface ReportSuggestionRow {
+  command: string
+  reason: string
+}
+
+export interface ReportSessionResponse {
+  health: ReportHealthSummary
+  modules: ReportModuleRow[]
+  suggestions: ReportSuggestionRow[]
+  actionItems: string[]
+}
+
+export interface ReportStaleRow {
+  name: string
+  docsAge: string
+  lastCodeChange: string
+}
+
+export interface ReportGapRow {
+  module: string
+  missing: string[]
+}
+
+export interface ReportCoverageResponse {
+  total: number
+  documented: number
+  pending: number
+  missing: number
+  percent: string
+  byStatus: Record<string, string[]>
+  stale: ReportStaleRow[]
+  gaps: ReportGapRow[]
+}
+
+export interface ReportDepEdge {
+  from: string
+  to: string
+}
+
+export interface ReportDepsResponse {
+  module?: string
+  uses?: string[]
+  usedBy?: string[]
+  external?: string[]
+  graph?: ReportDepEdge[]
+  cycles?: string[][]
+}
+
+export interface ReportTagRow {
+  tag: string
+  count: number
+  modules: string[]
+}
+
+export interface ReportTagsResponse {
+  tags: ReportTagRow[]
+}
+
+export interface ReportGotcha {
+  id: string
+  summary: string
+  tags?: string[]
+}
+
+export interface ReportPattern {
+  pattern: string
+  count: number
+  modules: string[]
+}
+
+export interface ReportGotchasResponse {
+  total: number
+  byModule: Record<string, ReportGotcha[]>
+  patterns: ReportPattern[]
+}
+
+export interface ReportEntity {
+  name: string
+  file: string
+  description: string
+}
+
+export interface ReportEntitiesResponse {
+  total: number
+  byModule: Record<string, ReportEntity[]>
+}
+
+export interface ReportHealthCheck {
+  name: string
+  status: string // "pass", "warn", "fail"
+  message: string
+}
+
+export interface ReportHealthResponse {
+  score: number
+  grade: string
+  checks: ReportHealthCheck[]
+  actionItems: string[]
+}
+
 class ApiClient {
   private base: string
 
@@ -493,6 +609,67 @@ class ApiClient {
       method: 'POST',
       body: JSON.stringify({ content }),
     })
+  }
+
+  // Report API methods
+  async getReportSession(limit?: number): Promise<ReportSessionResponse> {
+    const query = limit ? `?limit=${limit}` : ''
+    return this.fetch<ReportSessionResponse>(`/reports/session${query}`)
+  }
+
+  async getReportCoverage(module?: string): Promise<ReportCoverageResponse> {
+    const query = module ? `?module=${encodeURIComponent(module)}` : ''
+    return this.fetch<ReportCoverageResponse>(`/reports/coverage${query}`)
+  }
+
+  async getReportDeps(options?: {
+    module?: string
+    graph?: boolean
+    cycles?: boolean
+  }): Promise<ReportDepsResponse> {
+    const params = new URLSearchParams()
+    if (options?.module) params.set('module', options.module)
+    if (options?.graph) params.set('graph', 'true')
+    if (options?.cycles) params.set('cycles', 'true')
+    const query = params.toString() ? `?${params}` : ''
+    return this.fetch<ReportDepsResponse>(`/reports/deps${query}`)
+  }
+
+  async getReportTags(tags?: string[], any?: boolean): Promise<ReportTagsResponse> {
+    const params = new URLSearchParams()
+    if (tags && tags.length > 0) params.set('tags', tags.join(','))
+    if (any) params.set('any', 'true')
+    const query = params.toString() ? `?${params}` : ''
+    return this.fetch<ReportTagsResponse>(`/reports/tags${query}`)
+  }
+
+  async getReportGotchas(options?: {
+    module?: string
+    tags?: string[]
+    patterns?: boolean
+  }): Promise<ReportGotchasResponse> {
+    const params = new URLSearchParams()
+    if (options?.module) params.set('module', options.module)
+    if (options?.tags && options.tags.length > 0) params.set('tags', options.tags.join(','))
+    if (options?.patterns) params.set('patterns', 'true')
+    const query = params.toString() ? `?${params}` : ''
+    return this.fetch<ReportGotchasResponse>(`/reports/gotchas${query}`)
+  }
+
+  async getReportEntities(options?: {
+    module?: string
+    tags?: string[]
+  }): Promise<ReportEntitiesResponse> {
+    const params = new URLSearchParams()
+    if (options?.module) params.set('module', options.module)
+    if (options?.tags && options.tags.length > 0) params.set('tags', options.tags.join(','))
+    const query = params.toString() ? `?${params}` : ''
+    return this.fetch<ReportEntitiesResponse>(`/reports/entities${query}`)
+  }
+
+  async getReportHealth(module?: string): Promise<ReportHealthResponse> {
+    const query = module ? `?module=${encodeURIComponent(module)}` : ''
+    return this.fetch<ReportHealthResponse>(`/reports/health${query}`)
   }
 }
 
