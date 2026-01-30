@@ -5,9 +5,6 @@ import LightModeIcon from '@mui/icons-material/LightMode'
 import DarkModeIcon from '@mui/icons-material/DarkMode'
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord'
 import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
-import CodeIcon from '@mui/icons-material/Code'
-import ExtensionIcon from '@mui/icons-material/Extension'
-import StorageIcon from '@mui/icons-material/Storage'
 import AssessmentIcon from '@mui/icons-material/Assessment'
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety'
 import CoverageIcon from '@mui/icons-material/DonutSmall'
@@ -15,17 +12,15 @@ import AccountTreeIcon from '@mui/icons-material/AccountTree'
 import LocalOfferIcon from '@mui/icons-material/LocalOffer'
 import ReportProblemIcon from '@mui/icons-material/ReportProblem'
 import CategoryIcon from '@mui/icons-material/Category'
+import PlaylistPlayIcon from '@mui/icons-material/PlaylistPlay'
 import StatusBlock from '../blocks/StatusBlock'
 import SuggestionsBlock from '../blocks/SuggestionsBlock'
-import ComposerBlock from '../blocks/ComposerBlock'
 import CommandInput from './CommandInput'
 import { useThemeMode } from '../hooks/useThemeMode'
-import { useSSEStore } from '../api/useSSE'
+import { usePollingStore } from '../api/usePolling'
 import { useFocusModule } from '../hooks/useFocusModule'
 import { useDrawer } from '../hooks/useDrawer'
-import { useWorkspaceStore } from '../hooks/useWorkspace'
-import { useStatusStore } from '../hooks/useStatus'
-import { api } from '../api/client'
+import { useSessionDataStore } from '../api/usePolling'
 
 export default function CommandPanel() {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
@@ -33,36 +28,16 @@ export default function CommandPanel() {
   const menuOpen = Boolean(anchorEl)
   const reportsMenuOpen = Boolean(reportsAnchorEl)
   const { mode, toggle: toggleTheme } = useThemeMode()
-  const connected = useSSEStore((s) => s.connected)
+  const connected = usePollingStore((s) => s.connected)
   const focusModule = useFocusModule((s) => s.module)
   const { open: openDrawer } = useDrawer()
-  const workspace = useWorkspaceStore((s) => s.workspace)
-  const status = useStatusStore((s) => s.status)
+  const workspace = useSessionDataStore((s) => s.workspace)
+  const status = useSessionDataStore((s) => s.status)
 
   // Status dot color: gray=disconnected, green=connected, orange=needs collect
-  const needsCollect = status.flags?.needsCollect ?? false
+  const needsCollect = status?.flags?.needsCollect ?? false
   const dotColor = !connected ? 'text.secondary' : needsCollect ? 'warning.main' : 'success.main'
   const dotTooltip = !connected ? 'Disconnected' : needsCollect ? 'Docs updated - run collect' : 'Connected'
-
-  const handleDotClick = async () => {
-    if (needsCollect) {
-      // Refresh status from server
-      const { setStatus, setLoading } = useStatusStore.getState()
-      setLoading(true)
-      try {
-        const data = await api.getStatus()
-        setStatus({
-          ...data,
-          stale: data.stale ?? [],
-          gaps: data.gaps ?? [],
-          pending: data.pending ?? [],
-          flags: data.flags,
-        })
-      } finally {
-        setLoading(false)
-      }
-    }
-  }
 
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget)
@@ -81,29 +56,11 @@ export default function CommandPanel() {
     handleMenuClose()
   }
 
-  const handleOpenTemplates = () => {
+  const handleOpenRecipes = () => {
     openDrawer({
-      title: 'Templates',
+      title: 'Recipes',
       content: '',
-      mode: 'templates',
-    })
-    handleMenuClose()
-  }
-
-  const handleOpenFragments = () => {
-    openDrawer({
-      title: 'Fragments',
-      content: '',
-      mode: 'fragments',
-    })
-    handleMenuClose()
-  }
-
-  const handleOpenDatasets = () => {
-    openDrawer({
-      title: 'Datasets',
-      content: '',
-      mode: 'datasets',
+      mode: 'recipes',
     })
     handleMenuClose()
   }
@@ -180,20 +137,25 @@ export default function CommandPanel() {
           </Box>
           <Tooltip title={dotTooltip}>
             <Box
-              onClick={handleDotClick}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 0.5,
-                cursor: needsCollect ? 'pointer' : 'default',
               }}
             >
               <FiberManualRecordIcon
                 sx={{
                   fontSize: 8,
                   color: dotColor,
-                  // Pulse animation when collect needed
-                  ...(needsCollect && {
+                  transition: 'color 0.3s ease',
+                  ...(!connected && {
+                    animation: 'blink 2s infinite',
+                    '@keyframes blink': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0.2 },
+                    },
+                  }),
+                  ...(connected && needsCollect && {
                     animation: 'pulse 1.5s infinite',
                     '@keyframes pulse': {
                       '0%, 100%': { opacity: 1 },
@@ -202,7 +164,7 @@ export default function CommandPanel() {
                   }),
                 }}
               />
-              {workspace && (
+              {workspace ? (
                 <Typography
                   variant="caption"
                   sx={{
@@ -211,9 +173,21 @@ export default function CommandPanel() {
                     color: 'text.secondary',
                   }}
                 >
-                  {workspace.split('/').pop()}
+                  {workspace}
                 </Typography>
-              )}
+              ) : !connected ? (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: '0.625rem',
+                    color: 'text.secondary',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  offline
+                </Typography>
+              ) : null}
             </Box>
           </Tooltip>
         </Box>
@@ -228,18 +202,9 @@ export default function CommandPanel() {
             <ViewModuleOutlinedIcon fontSize="small" />
             Modules
           </MenuItem>
-          <Divider />
-          <MenuItem onClick={handleOpenTemplates} sx={{ gap: 1 }}>
-            <CodeIcon fontSize="small" />
-            Templates
-          </MenuItem>
-          <MenuItem onClick={handleOpenFragments} sx={{ gap: 1 }}>
-            <ExtensionIcon fontSize="small" />
-            Fragments
-          </MenuItem>
-          <MenuItem onClick={handleOpenDatasets} sx={{ gap: 1 }}>
-            <StorageIcon fontSize="small" />
-            Datasets
+          <MenuItem onClick={handleOpenRecipes} sx={{ gap: 1 }}>
+            <PlaylistPlayIcon fontSize="small" />
+            Recipes
           </MenuItem>
           <Divider />
           <MenuItem onClick={handleReportsClick} sx={{ gap: 1 }}>
@@ -336,7 +301,6 @@ export default function CommandPanel() {
         }}
       >
         <StatusBlock />
-        <ComposerBlock />
         <SuggestionsBlock />
       </Box>
 

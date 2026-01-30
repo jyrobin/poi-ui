@@ -3,28 +3,16 @@ import { Box, Typography, IconButton, Button, CircularProgress } from '@mui/mate
 import CloseIcon from '@mui/icons-material/Close'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useDrawer } from '../hooks/useDrawer'
-import { useComposer } from '../hooks/useComposer'
 import { DRAWER_MIN_WIDTH, DRAWER_MAX_WIDTH } from '../theme'
 import MarkdownViewer from '../viewers/MarkdownViewer'
-import PromptEditor from '../viewers/PromptEditor'
 import ModuleDetailViewer from '../viewers/ModuleDetailViewer'
 import ModuleListViewer from '../viewers/ModuleListViewer'
-import TemplateListViewer from '../viewers/TemplateListViewer'
-import TemplateDetailViewer from '../viewers/TemplateDetailViewer'
-import FragmentListViewer from '../viewers/FragmentListViewer'
-import FragmentDetailViewer from '../viewers/FragmentDetailViewer'
-import DatasetListViewer from '../viewers/DatasetListViewer'
-import DatasetDetailViewer from '../viewers/DatasetDetailViewer'
 import ReportViewer, { type ReportType } from '../viewers/ReportViewer'
-import TextSlotEditor from '../composer/TextSlotEditor'
-import SelectSlotEditor from '../composer/SelectSlotEditor'
-import ListSlotEditor from '../composer/ListSlotEditor'
-import ChoiceSlotEditor from '../composer/ChoiceSlotEditor'
-import FragmentSlotEditor from '../composer/FragmentSlotEditor'
+import CommandPreview from '../viewers/CommandPreview'
+import RecipesViewer from '../viewers/RecipesViewer'
 
 export default function ContentDrawer() {
   const { content, close } = useDrawer()
-  const { schema } = useComposer()
   const [actionLoading, setActionLoading] = useState(false)
 
   const handleAction = async () => {
@@ -35,32 +23,6 @@ export default function ContentDrawer() {
       } finally {
         setActionLoading(false)
       }
-    }
-  }
-
-  // Find slot definition for input or fragment-edit mode
-  const slot = (content?.mode === 'input' || content?.mode === 'fragment-edit') && content?.slotName && schema
-    ? schema.slots.find((s) => s.name === content.slotName)
-    : null
-
-  const renderSlotEditor = () => {
-    if (!slot) return null
-
-    const handleDone = () => close()
-
-    switch (slot.type) {
-      case 'text':
-        return <TextSlotEditor slot={slot} onDone={handleDone} />
-      case 'select':
-        return <SelectSlotEditor slot={slot} onDone={handleDone} />
-      case 'list':
-        return <ListSlotEditor slot={slot} onDone={handleDone} />
-      case 'choice':
-        return <ChoiceSlotEditor slot={slot} onDone={handleDone} />
-      case 'fragment':
-        return <FragmentSlotEditor slot={slot} onDone={handleDone} />
-      default:
-        return null
     }
   }
 
@@ -114,40 +76,18 @@ export default function ContentDrawer() {
           p: 2,
         }}
       >
-        {(content?.mode === 'input' || content?.mode === 'fragment-edit') && slot ? (
-          renderSlotEditor()
-        ) : content?.mode === 'modules' ? (
+        {content?.mode === 'modules' ? (
           <ModuleListViewer />
         ) : content?.mode === 'module' && content.moduleName ? (
           <ModuleDetailViewer moduleName={content.moduleName} />
-        ) : content?.mode === 'templates' ? (
-          <TemplateListViewer />
-        ) : content?.mode === 'template' && content.templateName ? (
-          <TemplateDetailViewer templateName={content.templateName} />
-        ) : content?.mode === 'fragments' ? (
-          <FragmentListViewer />
-        ) : content?.mode === 'fragment' && content.fragmentName ? (
-          <FragmentDetailViewer fragmentName={content.fragmentName} />
-        ) : content?.mode === 'datasets' ? (
-          <DatasetListViewer />
-        ) : content?.mode === 'dataset' && content.datasetName ? (
-          <DatasetDetailViewer datasetName={content.datasetName} />
         ) : content?.mode === 'report' && content.reportType ? (
           <ReportViewer reportType={content.reportType as ReportType} module={content.moduleName} />
-        ) : content?.mode === 'prompt-edit' && content?.content ? (
-          <PromptEditor
-            content={content.content}
-            originalContent={content.originalContent}
-            templateSource={content.templateSource}
-            templateName={content.templateName}
-            serverStats={content.stats}
-          />
+        ) : content?.mode === 'command-preview' && content.commandPreview ? (
+          <CommandPreview preview={content.commandPreview} />
+        ) : content?.mode === 'recipes' ? (
+          <RecipesViewer />
         ) : content?.mode === 'output' && content?.content ? (
-          <PromptEditor
-            content={content.content}
-            originalContent={content.content}
-            serverStats={content.stats}
-          />
+          <MarkdownViewer content={content.content} />
         ) : content?.content ? (
           <MarkdownViewer content={content.content} />
         ) : (
@@ -157,8 +97,8 @@ export default function ContentDrawer() {
         )}
       </Box>
 
-      {/* Drawer actions - show for output/prompt-edit mode when there's an action */}
-      {(content?.mode === 'output' || content?.mode === 'prompt-edit') && content?.action && (
+      {/* Drawer actions */}
+      {content?.mode === 'output' && content?.action && (
         <Box
           sx={{
             display: 'flex',

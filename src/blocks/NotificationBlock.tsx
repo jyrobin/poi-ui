@@ -3,7 +3,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'
 import WarningAmberIcon from '@mui/icons-material/WarningAmber'
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
-import { useSSEStore } from '../api/useSSE'
+import { usePollingStore } from '../api/usePolling'
 
 const ICON_MAP = {
   info: InfoOutlinedIcon,
@@ -24,7 +24,7 @@ const BG_MAP = {
 }
 
 export default function NotificationBlock() {
-  const { notifications, dismissNotification } = useSSEStore()
+  const { notifications, dismissNotification } = usePollingStore()
 
   if (notifications.length === 0) {
     return null

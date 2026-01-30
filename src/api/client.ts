@@ -29,16 +29,6 @@ export interface Module {
   type: string
 }
 
-export interface ModuleInfo {
-  name: string
-  path: string
-  status?: 'ok' | 'stale' | 'missing'
-  documented: boolean
-  files?: string[]
-  designPath?: string
-  notesPath?: string
-}
-
 export interface Suggestion {
   command: string
   module: string
@@ -50,12 +40,6 @@ export interface SuggestionsResponse {
   suggestions: Suggestion[]
 }
 
-export interface PromptRequest {
-  command: string
-  module: string
-  options?: Record<string, unknown>
-}
-
 // Token statistics for LLM usage estimation
 export interface TokenStats {
   charCount: number
@@ -64,235 +48,49 @@ export interface TokenStats {
   estTokens: number
 }
 
-export interface PromptResponse {
-  prompt: string
-  title: string
-  stats?: TokenStats
-}
-
-// Composer types
-export type SlotType = 'text' | 'select' | 'list' | 'choice' | 'fragment'
-
-export interface SlotDefinition {
-  name: string
-  type: SlotType
-  label: string
-  required: boolean
-  options?: string[] // for select/choice types
-  placeholder?: string
-  dataset?: string // for select slots - which dataset provides options
-  fragment?: string // for fragment slots - which fragment this toggles
-  description?: string // slot description
-}
-
-export interface ComposerSchema {
-  command: string
-  description: string
-  slots: SlotDefinition[]
-}
-
-export interface ComposerBuildRequest {
+// Command preview types
+export interface CommandPreviewRequest {
   command: string
   module: string
-  slots: Record<string, unknown>
-  overrides?: Record<string, string> // Edited content overrides for fragments/slots
 }
 
-export interface FileInfo {
-  path: string
-  name: string
-  type: 'file' | 'directory'
-}
-
-export interface CollectResult {
-  success: boolean
-  modules: number
-  tags: number
-  messages: string[]
-  error?: string
-}
-
-// Template Editor API types
-export interface TemplateListItem {
-  name: string
-  intent: string
-  description: string
-  source: 'builtin' | 'user'
-  params?: string[]
-}
-
-export interface TemplatesListResponse {
-  templates: TemplateListItem[]
-}
-
-export interface TemplateDetail {
-  name: string
-  intent: string
-  description: string
-  source: 'builtin' | 'user'
-  params?: string[]
-  raw: string
-  fragments?: string[]
-  datasets?: string[]
-  isCustom: boolean
-}
-
-export interface TemplatePreviewRequest {
-  module?: string
-  data?: Record<string, unknown>
-}
-
-export interface TemplatePreviewResponse {
-  name: string
-  rendered?: string
-  error?: string
-  stats?: TokenStats
-}
-
-export interface TemplateSaveRequest {
+export interface CommandPreviewSection {
+  header: string
   content: string
+  source: string     // "brief", "context", "task"
+  sourceName: string // e.g. "docs-requirements"
 }
 
-export interface TemplateSaveResponse {
-  name: string
-  path: string
-  isNew: boolean
-  message: string
+export interface CommandPreviewResponse {
+  command: string
+  module: string
+  sections: CommandPreviewSection[]
+  fullText: string
+  stats: TokenStats
 }
 
-export interface TemplateResetResponse {
-  name: string
-  message: string
+// Recipe types
+export interface RecipeStep {
+  tool: string
+  args: string[]
 }
 
-export interface TemplateValidateRequest {
-  content: string
-}
-
-export interface TemplateValidateResponse {
-  valid: boolean
-  error?: string
-}
-
-export interface TemplateBuiltinResponse {
-  name: string
-  content: string
-  exists: boolean
-}
-
-export interface FragmentListItem {
-  name: string
-  category: string
-  description: string
-  required: boolean
-  source: 'builtin' | 'user'
-}
-
-export interface FragmentsListResponse {
-  fragments: FragmentListItem[]
-  byCategory?: Record<string, FragmentListItem[]>
-}
-
-export interface FragmentDetail {
-  name: string
-  category: string
-  description: string
-  required: boolean
-  condition?: string
-  source: 'builtin' | 'user'
-  raw: string
-  datasets?: string[]
-  usedBy?: string[]
-  isCustom: boolean
-}
-
-export interface FragmentPreviewRequest {
-  module?: string
-  data?: Record<string, unknown>
-}
-
-export interface FragmentPreviewResponse {
-  name: string
-  rendered?: string
-  error?: string
-  stats?: TokenStats
-}
-
-export interface FragmentSaveRequest {
-  content: string
-}
-
-export interface FragmentSaveResponse {
-  name: string
-  path: string
-  isNew: boolean
-  message: string
-}
-
-export interface FragmentCreateRequest {
-  name: string
-  content: string
-}
-
-export interface FragmentDeleteResponse {
-  name: string
-  message: string
-}
-
-export interface FragmentValidateRequest {
-  content: string
-}
-
-export interface FragmentValidateResponse {
-  valid: boolean
-  error?: string
-}
-
-export interface FragmentBuiltinResponse {
-  name: string
-  content: string
-  exists: boolean
-}
-
-export interface DatasetInfo {
+export interface Recipe {
   name: string
   description: string
-  type: string
-  fields?: string[]
-  dynamic: boolean
+  steps: RecipeStep[]
 }
 
-export interface DatasetsListResponse {
-  datasets: DatasetInfo[]
+export interface RecipesListResponse {
+  recipes: Recipe[]
 }
 
-export interface DatasetDetail {
-  name: string
-  description: string
-  type: string
-  fields?: string[]
-  dynamic: boolean
-  sample?: Record<string, unknown>
-  usedBy?: string[]
-  isCustom: boolean
-  raw?: string
-}
-
-export interface DatasetSaveResponse {
-  name: string
-  path: string
-  isNew: boolean
-  message: string
-}
-
-export interface DatasetDeleteResponse {
-  name: string
-  message: string
-}
-
-export interface DatasetValidateResponse {
-  valid: boolean
-  error?: string
+// Session response (polling endpoint)
+export interface SessionResponse {
+  health: HealthResponse
+  status: StatusResponse
+  suggestions: Suggestion[]
+  workspace: string
 }
 
 // Report API types
@@ -308,7 +106,7 @@ export interface ReportModuleRow {
   name: string
   type: string
   status: string
-  docs: string // "ok", "pending", "stale", "gaps"
+  docs: string
 }
 
 export interface ReportSuggestionRow {
@@ -400,7 +198,7 @@ export interface ReportEntitiesResponse {
 
 export interface ReportHealthCheck {
   name: string
-  status: string // "pass", "warn", "fail"
+  status: string
   message: string
 }
 
@@ -447,168 +245,29 @@ class ApiClient {
   }
 
   async getSuggestions(n: number = 5): Promise<SuggestionsResponse> {
-    return this.fetch<SuggestionsResponse>(`/prompts/suggested?n=${n}`)
+    return this.fetch<SuggestionsResponse>(`/suggestions?n=${n}`)
   }
 
-  async generatePrompt(request: PromptRequest): Promise<PromptResponse> {
-    return this.fetch<PromptResponse>('/prompt', {
+  async getSession(): Promise<SessionResponse> {
+    return this.fetch<SessionResponse>('/session')
+  }
+
+  async previewCommand(request: CommandPreviewRequest): Promise<CommandPreviewResponse> {
+    return this.fetch<CommandPreviewResponse>('/commands/preview', {
       method: 'POST',
       body: JSON.stringify(request),
     })
   }
 
-  async getComposerSchema(command: string): Promise<ComposerSchema> {
-    return this.fetch<ComposerSchema>(`/composer/schema/${command}`)
-  }
-
-  async buildPrompt(request: ComposerBuildRequest): Promise<PromptResponse> {
-    return this.fetch<PromptResponse>('/composer/build', {
+  async executeCommand(command: string, module?: string): Promise<{ output: string; error?: string }> {
+    return this.fetch('/commands/execute', {
       method: 'POST',
-      body: JSON.stringify(request),
+      body: JSON.stringify({ command, module }),
     })
   }
 
-  async listFiles(module: string): Promise<{ files: FileInfo[] }> {
-    return this.fetch<{ files: FileInfo[] }>(`/files/list?module=${encodeURIComponent(module)}`)
-  }
-
-  async readFiles(paths: string[]): Promise<{ files: { path: string; content: string }[] }> {
-    return this.fetch<{ files: { path: string; content: string }[] }>('/files/read', {
-      method: 'POST',
-      body: JSON.stringify({ paths }),
-    })
-  }
-
-  async runCollect(): Promise<CollectResult> {
-    return this.fetch<CollectResult>('/commands/collect', {
-      method: 'POST',
-    })
-  }
-
-  // Template Editor API methods
-  async getTemplates(intent?: string): Promise<TemplatesListResponse> {
-    const query = intent ? `?intent=${encodeURIComponent(intent)}` : ''
-    return this.fetch<TemplatesListResponse>(`/templates${query}`)
-  }
-
-  async getTemplate(name: string): Promise<TemplateDetail> {
-    return this.fetch<TemplateDetail>(`/templates/${encodeURIComponent(name)}`)
-  }
-
-  async previewTemplate(name: string, request?: TemplatePreviewRequest): Promise<TemplatePreviewResponse> {
-    return this.fetch<TemplatePreviewResponse>(`/templates/${encodeURIComponent(name)}/preview`, {
-      method: 'POST',
-      body: JSON.stringify(request ?? {}),
-    })
-  }
-
-  async saveTemplate(name: string, content: string): Promise<TemplateSaveResponse> {
-    return this.fetch<TemplateSaveResponse>(`/templates/${encodeURIComponent(name)}`, {
-      method: 'PUT',
-      body: JSON.stringify({ content }),
-    })
-  }
-
-  async resetTemplate(name: string): Promise<TemplateResetResponse> {
-    return this.fetch<TemplateResetResponse>(`/templates/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    })
-  }
-
-  async validateTemplate(name: string, content: string): Promise<TemplateValidateResponse> {
-    return this.fetch<TemplateValidateResponse>(`/templates/${encodeURIComponent(name)}/validate`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    })
-  }
-
-  async getBuiltinTemplate(name: string): Promise<TemplateBuiltinResponse> {
-    return this.fetch<TemplateBuiltinResponse>(`/templates/${encodeURIComponent(name)}/builtin`)
-  }
-
-  async getFragments(category?: string, grouped?: boolean): Promise<FragmentsListResponse> {
-    const params = new URLSearchParams()
-    if (category) params.set('category', category)
-    if (grouped) params.set('grouped', 'true')
-    const query = params.toString() ? `?${params}` : ''
-    return this.fetch<FragmentsListResponse>(`/fragments${query}`)
-  }
-
-  async getFragment(name: string): Promise<FragmentDetail> {
-    return this.fetch<FragmentDetail>(`/fragments/${encodeURIComponent(name)}`)
-  }
-
-  async previewFragment(name: string, request?: FragmentPreviewRequest): Promise<FragmentPreviewResponse> {
-    return this.fetch<FragmentPreviewResponse>(`/fragments/${encodeURIComponent(name)}/preview`, {
-      method: 'POST',
-      body: JSON.stringify(request ?? {}),
-    })
-  }
-
-  async saveFragment(name: string, content: string): Promise<FragmentSaveResponse> {
-    return this.fetch<FragmentSaveResponse>(`/fragments/${encodeURIComponent(name)}`, {
-      method: 'PUT',
-      body: JSON.stringify({ content }),
-    })
-  }
-
-  async createFragment(name: string, content: string): Promise<FragmentSaveResponse> {
-    return this.fetch<FragmentSaveResponse>('/fragments', {
-      method: 'POST',
-      body: JSON.stringify({ name, content }),
-    })
-  }
-
-  async deleteFragment(name: string): Promise<FragmentDeleteResponse> {
-    return this.fetch<FragmentDeleteResponse>(`/fragments/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    })
-  }
-
-  async validateFragment(name: string, content: string): Promise<FragmentValidateResponse> {
-    return this.fetch<FragmentValidateResponse>(`/fragments/${encodeURIComponent(name)}/validate`, {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    })
-  }
-
-  async getBuiltinFragment(name: string): Promise<FragmentBuiltinResponse> {
-    return this.fetch<FragmentBuiltinResponse>(`/fragments/${encodeURIComponent(name)}/builtin`)
-  }
-
-  async getDatasets(): Promise<DatasetsListResponse> {
-    return this.fetch<DatasetsListResponse>('/datasets')
-  }
-
-  async getDataset(name: string): Promise<DatasetDetail> {
-    return this.fetch<DatasetDetail>(`/datasets/${encodeURIComponent(name)}`)
-  }
-
-  async saveDataset(name: string, content: string): Promise<DatasetSaveResponse> {
-    return this.fetch<DatasetSaveResponse>(`/datasets/${encodeURIComponent(name)}`, {
-      method: 'PUT',
-      body: JSON.stringify({ content }),
-    })
-  }
-
-  async createDataset(name: string, content: string): Promise<DatasetSaveResponse> {
-    return this.fetch<DatasetSaveResponse>('/datasets', {
-      method: 'POST',
-      body: JSON.stringify({ name, content }),
-    })
-  }
-
-  async deleteDataset(name: string): Promise<DatasetDeleteResponse> {
-    return this.fetch<DatasetDeleteResponse>(`/datasets/${encodeURIComponent(name)}`, {
-      method: 'DELETE',
-    })
-  }
-
-  async validateDataset(content: string): Promise<DatasetValidateResponse> {
-    return this.fetch<DatasetValidateResponse>('/datasets/validate', {
-      method: 'POST',
-      body: JSON.stringify({ content }),
-    })
+  async getRecipes(): Promise<RecipesListResponse> {
+    return this.fetch<RecipesListResponse>('/recipes')
   }
 
   // Report API methods

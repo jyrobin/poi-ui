@@ -23,120 +23,85 @@ server: {
 }
 ```
 
-### SSE Events Must Match Server Event Names
+### Go API Returns null for Empty Slices
 
-The client listens for specific event names. If the server sends a different event name, the client silently ignores it.
-
-```typescript
-// WRONG - event name mismatch
-eventSource.addEventListener('statusChanged', ...) // Won't receive 'status_changed'
-
-// RIGHT - exact event name match
-eventSource.addEventListener('status', ...)
-```
-
-Server sends: `event: status\ndata: {...}\n\n`
-
-### Zustand Store Access in Event Handlers
-
-When accessing Zustand store in callbacks (like SSE event handlers), use `getState()` to avoid stale closures.
+Go `nil` slices marshal as JSON `null`, not `[]`. UI code must handle both:
 
 ```typescript
-// WRONG - stale closure, won't see updates
-const { setStatus } = useStatusStore()
-eventSource.addEventListener('status', () => {
-  setStatus(newStatus) // May use stale setter
-})
+// WRONG - crashes on null
+status.stale.length
 
-// RIGHT - fresh state access
-eventSource.addEventListener('status', () => {
-  useStatusStore.getState().setStatus(newStatus)
-})
+// RIGHT - null-safe
+const stale = status.stale ?? []
 ```
 
-### Drawer Action Must Update Content via Store
+### Polling Store vs Session Data Store
 
-When a drawer action needs to update the displayed content (e.g., showing command results), use `updateContent` from the store.
+Two separate Zustand stores manage different concerns:
 
-```typescript
-// WRONG - content prop is captured at open time
-open({
-  content: 'Initial',
-  action: {
-    onClick: () => {
-      // Cannot update content here directly
-    }
-  }
-})
+- `usePollingStore` — connection state and notifications (UI-local state)
+- `useSessionDataStore` — server data (status, suggestions, workspace) populated by the polling loop
 
-// RIGHT - use store method
-const { updateContent } = useDrawer.getState()
-open({
-  content: 'Initial',
-  action: {
-    onClick: async () => {
-      updateContent('Running...')
-      const result = await api.runCommand()
-      updateContent(`Result: ${result}`)
-    }
-  }
-})
-```
+Hooks like `useStatus()` and `useSuggestions()` are thin wrappers that read from `useSessionDataStore`.
 
-### File Watcher Debouncing
+### Drawer Content Must Match Mode
 
-Editors often trigger multiple filesystem events for a single save. The server debounces events within 500ms to prevent duplicate SSE updates.
+The `ContentDrawer` renders different viewers based on `DrawerContent.mode`. Each mode expects specific fields:
+
+| Mode | Required Fields |
+|------|----------------|
+| `modules` | (none) |
+| `module` | `moduleName` |
+| `report` | `reportType`, optionally `moduleName` |
+| `command-preview` | `commandPreview` |
+| `recipes` | (none) |
+| `output` | `content` |
+
+Opening a drawer with mismatched mode/fields shows "No content selected".
+
+### Focus Module Affects Commands
+
+When a user types a command without `@module`, the focus module (from `useFocusModule`) is used as default. Clicking a suggestion also sets the focus module. This is intentional — it creates a "working context" flow.
 
 ## Debugging
 
-### SSE Connection Not Working
+### API Not Responding
 
-1. Check browser console for `[sse]` prefixed logs
-2. Verify POI server is running: `curl http://localhost:8765/api/health`
-3. Check Vite proxy config in `vite.config.ts`
-4. Look for CORS errors in Network tab
+1. Check the POI server is running: `curl http://localhost:8765/api/health`
+2. Check Vite proxy in `vite.config.ts`
+3. Look for CORS errors in browser Network tab
+4. Check the connection dot in the header (gray = disconnected)
 
-### Status Not Updating After File Changes
+### Status Not Updating
 
-1. Check server logs for `[watcher]` events: `poi serve -v`
-2. Verify file is a doc file (DESIGN.md, NOTES.md, .summary.yaml)
-3. Check SSE connection status (green dot in header)
-4. Look for `[sse] Received status event` in browser console
+1. Check polling is running: look for `/api/session` requests in Network tab (every 15s)
+2. Verify the server returns fresh data: `curl http://localhost:8765/api/session`
+3. Check browser console for fetch errors
 
 ### Suggestions Not Appearing
 
-1. Check `/api/prompts/suggested` response in Network tab
+1. Check `/api/session` response has `suggestions` array
 2. Verify modules are registered: `poi status`
-3. Check for API errors in browser console
+3. The suggestions store reads from polling data — if polling fails, suggestions stay empty
 
-### Theme Not Persisting
+### Command Preview Empty
 
-Theme mode is stored in Zustand with no persistence by default. It resets on page refresh. To persist, add `persist` middleware to `useThemeMode`.
+1. Check the server has brief files in `.poi/briefs/`
+2. Verify the assembler finds briefs for the command type
+3. The preview endpoint returns sections — empty sections means no briefs found
 
 ## Testing
 
 ### Development Server
 
 ```bash
-# Start both API and UI (recommended)
-npm run dev:full
-
-# Or separately:
+# Start both API and UI
 # Terminal 1:
-cd ../poi && poi serve -v
+cd poi && go run . admin serve --port :8765
 
 # Terminal 2:
-npm run dev
+cd poi-ui && npm run dev
 ```
-
-### Manual Testing Checklist
-
-1. SSE connection: Edit a doc file, check for status update
-2. Suggestions: Click a suggestion, verify drawer shows prompt
-3. Collect: Click /collect suggestion, click Run, verify success
-4. Module list: Click workspace menu > View Modules
-5. Theme toggle: Click sun/moon icon
-6. Responsive: Resize window, check drawer behavior
 
 ### Build
 
@@ -147,12 +112,20 @@ npm run preview  # Preview production build
 
 ## Historical Decisions
 
+### Polling Over SSE
+
+Replaced SSE (Server-Sent Events) with periodic REST polling because:
+- Simpler server implementation (no connection management)
+- Works through all proxies and load balancers
+- 15-second interval is sufficient for documentation status
+- Easier to debug (standard HTTP requests)
+
 ### Zustand Over Redux
 
 Chose Zustand for state management because:
 - Simpler API, less boilerplate than Redux
 - No context providers needed
-- Easy store access outside React components (SSE handlers)
+- Easy store access outside React components
 - Small bundle size
 
 ### MUI Over Tailwind
@@ -173,15 +146,19 @@ Chose Vite because:
 
 ### Server-Driven Architecture
 
-The API server owns all heuristics (needsCollect, suggestions ranking). The UI is "dumb" - it renders what the server sends. This ensures:
-- SSE and page refresh give consistent results
+The API server owns all heuristics (suggestions ranking, health scoring, coverage calculation). The UI renders what the server sends. This ensures:
+- Polling and page refresh give consistent results
 - Adding new heuristics requires only server changes
 - No client-side state synchronization issues
+
+### Command Preview Pattern
+
+Instead of running commands in the browser, the UI previews what a command would produce. The preview endpoint returns labeled sections with provenance (brief, context, task), letting users inspect the full prompt expansion before copying it to an LLM. This is read-only and safe.
 
 ### Drawer Pattern
 
 Used a drawer (slide-in panel) instead of modals because:
-- Can show large prompt content without blocking
+- Can show large content without blocking interaction
 - Supports copy-to-clipboard workflow
 - Works well with command panel layout
 - Responsive: overlay on mobile, inline on desktop
@@ -190,14 +167,15 @@ Used a drawer (slide-in panel) instead of modals because:
 
 | File | Purpose |
 |------|---------|
-| `src/App.tsx` | Root component, theme provider, SSE setup |
-| `src/components/AppShell.tsx` | Main layout with responsive drawer |
-| `src/components/CommandPanel.tsx` | Left panel with status, suggestions, composer |
-| `src/components/ContentDrawer.tsx` | Right drawer for viewing prompts/modules |
+| `src/App.tsx` | Root component, theme provider, polling setup |
 | `src/api/client.ts` | Typed REST API client |
-| `src/api/useSSE.ts` | SSE connection hook and event store |
+| `src/api/usePolling.ts` | Polling hook + session data store |
+| `src/components/AppShell.tsx` | Main layout with responsive drawer |
+| `src/components/CommandPanel.tsx` | Left panel with status, suggestions, menu |
+| `src/components/ContentDrawer.tsx` | Right drawer routing to viewers |
+| `src/components/CommandInput.tsx` | Command entry with autocomplete |
 | `src/hooks/useDrawer.ts` | Drawer state management |
-| `src/hooks/useStatus.ts` | Workspace status from API with SSE updates |
-| `src/hooks/useSuggestions.ts` | Prompt suggestions with SSE updates |
+| `src/viewers/CommandPreview.tsx` | Sectioned command expansion viewer |
+| `src/viewers/ReportViewer.tsx` | Report rendering |
 | `src/theme/index.ts` | MUI theme configuration |
 | `vite.config.ts` | Vite config with API proxy |

@@ -1,7 +1,6 @@
-import { useEffect } from 'react'
 import { create } from 'zustand'
-import { api, StatusResponse, StatusFlags } from '../api/client'
-import { useSSEStore } from '../api/useSSE'
+import { StatusResponse, StatusFlags } from '../api/client'
+import { useSessionDataStore } from '../api/usePolling'
 
 const defaultFlags: StatusFlags = {
   needsCollect: false,
@@ -10,90 +9,38 @@ const defaultFlags: StatusFlags = {
   hasPending: false,
 }
 
-const mockStatus: StatusResponse = {
-  documented: 12,
-  total: 15,
-  stale: ['voiceturn'],
-  gaps: ['poi'],
-  pending: ['new-svc', 'utils'],
+const defaultStatus: StatusResponse = {
+  documented: 0,
+  total: 0,
+  stale: [],
+  gaps: [],
+  pending: [],
   flags: defaultFlags,
 }
 
 interface StatusState {
-  status: StatusResponse
   loading: boolean
   error: string | null
-  lastUpdated: number | null
-  setStatus: (status: StatusResponse) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
 }
 
 export const useStatusStore = create<StatusState>((set) => ({
-  status: mockStatus,
   loading: true,
   error: null,
-  lastUpdated: null,
-  setStatus: (status) => set({ status, lastUpdated: Date.now() }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
 }))
 
 export function useStatus() {
-  const { status, loading, error, setStatus, setLoading, setError } = useStatusStore()
+  const { loading, error } = useStatusStore()
 
-  // Subscribe to SSE status events
-  const lastStatusEvent = useSSEStore((s) => s.lastStatusEvent)
+  // Read status from the shared polling store
+  const polledStatus = useSessionDataStore((s) => s.status)
+  const status = polledStatus ?? defaultStatus
 
-  // Initial fetch
-  useEffect(() => {
-    let mounted = true
+  // Once we have data from polling, loading is done
+  const isLoading = loading && !polledStatus
 
-    async function fetchStatus() {
-      try {
-        const data = await api.getStatus()
-        if (mounted) {
-          // Ensure arrays are never null (Go returns null for nil slices)
-          setStatus({
-            ...data,
-            stale: data.stale ?? [],
-            gaps: data.gaps ?? [],
-            pending: data.pending ?? [],
-            flags: data.flags ?? defaultFlags,
-          })
-          setError(null)
-        }
-      } catch (err) {
-        if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to fetch status')
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false)
-        }
-      }
-    }
-
-    fetchStatus()
-
-    return () => {
-      mounted = false
-    }
-  }, [setStatus, setLoading, setError])
-
-  // Update status when server pushes new status via SSE
-  useEffect(() => {
-    if (lastStatusEvent?.status) {
-      const data = lastStatusEvent.status
-      setStatus({
-        ...data,
-        stale: data.stale ?? [],
-        gaps: data.gaps ?? [],
-        pending: data.pending ?? [],
-        flags: data.flags ?? defaultFlags,
-      })
-    }
-  }, [lastStatusEvent, setStatus])
-
-  return { status, loading, error }
+  return { status, loading: isLoading, error }
 }

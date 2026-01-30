@@ -4,11 +4,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import { useDrawer } from '../hooks/useDrawer'
 import { useSuggestions } from '../hooks/useSuggestions'
 import { useFocusModule } from '../hooks/useFocusModule'
-import { useComposer } from '../hooks/useComposer'
 import { api, Suggestion } from '../api/client'
-
-// Commands that use slot-based composition
-const COMPOSER_COMMANDS = ['update', 'investigate', 'context', 'incident', 'fix']
 
 function SuggestionSkeleton() {
   return (
@@ -23,87 +19,42 @@ export default function SuggestionsBlock() {
   const { open } = useDrawer()
   const { suggestions, loading, error } = useSuggestions()
   const setFocusModule = useFocusModule((s) => s.setModule)
-  const startComposer = useComposer((s) => s.startComposer)
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null)
 
   const handleClick = async (suggestion: Suggestion, index: number) => {
     setLoadingIndex(index)
+
     // Set focus module when clicking a suggestion
     if (suggestion.module) {
       setFocusModule(suggestion.module)
     }
 
-    // Handle slot-based composition commands
-    if (COMPOSER_COMMANDS.includes(suggestion.command)) {
-      try {
-        // Fetch schema from API and start composer
-        const schema = await api.getComposerSchema(suggestion.command)
-        startComposer(suggestion.command, suggestion.module || '', schema)
-      } catch {
-        // Fall back to mock schema if API unavailable
-        startComposer(suggestion.command, suggestion.module || '')
-      }
-      setLoadingIndex(null)
-      return
-    }
-
-    // Handle workspace-level commands that can be run via API
-    if (suggestion.command === 'collect') {
-      const { updateContent } = useDrawer.getState()
-      open({
-        title: '/collect',
-        content: `# Collect\n\nThis updates \`.poi/modules.yaml\` with the latest module metadata from all registered modules.\n\n**What it does:**\n1. Scans for all registered modules (.poi.yaml)\n2. Extracts module info from .summary.yaml files\n3. Rebuilds tag index and dependency graph\n4. Updates .poi/modules.yaml\n\nClick **Run** to execute, or run manually:\n\n\`\`\`bash\npoi collect\n\`\`\``,
-        mode: 'output',
-        action: {
-          label: 'Run',
-          onClick: async () => {
-            updateContent(`# Collect\n\n*Running...*`)
-            try {
-              const result = await api.runCollect()
-              if (result.success) {
-                const output = [
-                  `# Collect`,
-                  ``,
-                  `**Success!** Collected ${result.modules} modules with ${result.tags} tags.`,
-                  ``,
-                  `## Modules:`,
-                  ...result.messages,
-                ].join('\n')
-                updateContent(output)
-              } else {
-                updateContent(`# Collect\n\n**Error:** ${result.error}`)
-              }
-            } catch (err) {
-              updateContent(`# Collect\n\n**Error:** ${err instanceof Error ? err.message : 'Failed to run collect'}`)
-            }
-          },
-        },
-      })
-      setLoadingIndex(null)
-      return
-    }
-
     try {
-      const result = await api.generatePrompt({
+      // Preview the command expansion
+      const preview = await api.previewCommand({
         command: suggestion.command,
         module: suggestion.module,
       })
+
       const title = suggestion.module
-        ? `/${suggestion.command} @${suggestion.module}`
-        : `/${suggestion.command}`
-      open({
-        title: result.title || title,
-        content: result.prompt,
-        mode: 'output',
-      })
-    } catch {
-      // Fallback to a simple placeholder if API fails
-      const title = suggestion.module
-        ? `/${suggestion.command} @${suggestion.module}`
-        : `/${suggestion.command}`
+        ? `poi ${suggestion.command} -m ${suggestion.module}`
+        : `poi ${suggestion.command}`
+
       open({
         title,
-        content: `# ${suggestion.command}${suggestion.module ? ' ' + suggestion.module : ''}\n\n${suggestion.reason}\n\n(API unavailable - showing placeholder)`,
+        content: '',
+        mode: 'command-preview',
+        commandPreview: preview,
+      })
+    } catch {
+      // Fallback to simple placeholder
+      const title = suggestion.module
+        ? `poi ${suggestion.command} -m ${suggestion.module}`
+        : `poi ${suggestion.command}`
+
+      open({
+        title,
+        content: `# ${suggestion.command}${suggestion.module ? ' ' + suggestion.module : ''}\n\n${suggestion.reason}\n\n(API unavailable)`,
         mode: 'output',
       })
     } finally {
@@ -164,51 +115,33 @@ export default function SuggestionsBlock() {
             </ListItemIcon>
             <ListItemText
               primary={
-                <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                  <Typography
-                    component="span"
-                    sx={{
-                      fontFamily: '"JetBrains Mono", monospace',
-                      fontSize: '0.75rem',
-                      color: 'primary.main',
-                    }}
-                  >
-                    /{suggestion.command}
-                  </Typography>
+                <Typography
+                  component="span"
+                  sx={{
+                    fontFamily: '"JetBrains Mono", monospace',
+                    fontSize: '0.75rem',
+                    color: 'primary.main',
+                  }}
+                >
+                  poi {suggestion.command}
                   {suggestion.module ? (
-                    <Typography
-                      component="span"
-                      sx={{
-                        fontFamily: '"JetBrains Mono", monospace',
-                        fontSize: '0.75rem',
-                        color: 'text.primary',
-                      }}
-                    >
-                      @{suggestion.module}
-                    </Typography>
+                    <Box component="span" sx={{ color: 'text.primary' }}>
+                      {' '}-m {suggestion.module}
+                    </Box>
                   ) : (
-                    <Typography
+                    <Box
                       component="span"
                       sx={{
                         fontSize: '0.6875rem',
                         color: 'text.secondary',
                         fontStyle: 'italic',
+                        ml: 1,
                       }}
                     >
                       workspace
-                    </Typography>
+                    </Box>
                   )}
-                  <Typography
-                    component="span"
-                    sx={{
-                      fontSize: '0.6875rem',
-                      color: 'text.secondary',
-                      ml: 'auto',
-                    }}
-                  >
-                    {suggestion.score}
-                  </Typography>
-                </Box>
+                </Typography>
               }
               secondary={
                 <Typography

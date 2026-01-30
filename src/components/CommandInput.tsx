@@ -1,25 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
-import { Box, InputBase, Paper, List, ListItemButton, ListItemText, ListItemIcon, Typography, Menu, MenuItem, Divider } from '@mui/material'
+import { Box, InputBase, Paper, List, ListItemButton, ListItemText, Typography, Menu, MenuItem, Divider, ListItemIcon } from '@mui/material'
 import ViewModuleOutlinedIcon from '@mui/icons-material/ViewModuleOutlined'
 import TerminalIcon from '@mui/icons-material/Terminal'
 import { api } from '../api/client'
 import { useDrawer } from '../hooks/useDrawer'
-import { useComposer } from '../hooks/useComposer'
 import { useCommandHistory } from '../hooks/useCommandHistory'
 import { useFocusModule } from '../hooks/useFocusModule'
 
 const COMMANDS = [
-  { name: 'update', description: 'Update DESIGN.md/NOTES.md', hasSlots: true },
-  { name: 'bootstrap', description: 'Create initial docs', hasSlots: false },
-  { name: 'fix', description: 'Fix evaluation gaps', hasSlots: false },
-  { name: 'investigate', description: 'Debug with context', hasSlots: true },
-  { name: 'context', description: 'Gather navigation context', hasSlots: true },
-  { name: 'evaluate', description: 'Evaluate documentation', hasSlots: false },
-  { name: 'incident', description: 'Record incident', hasSlots: true },
-  { name: 'status', description: 'Workspace health overview', hasSlots: false },
+  { name: 'bootstrap', description: 'Create initial docs' },
+  { name: 'update-docs', description: 'Update DESIGN.md/NOTES.md' },
+  { name: 'fix-docs', description: 'Fix evaluation gaps' },
+  { name: 'evaluate', description: 'Evaluate documentation' },
+  { name: 'review', description: 'Review documentation' },
+  { name: 'status', description: 'Workspace health overview' },
 ]
 
-// Report commands open the report viewer instead of generating prompts
 const REPORT_COMMANDS: Record<string, { title: string; type: string }> = {
   session: { title: 'Session Overview', type: 'session' },
   health: { title: 'Health Check', type: 'health' },
@@ -30,7 +26,6 @@ const REPORT_COMMANDS: Record<string, { title: string; type: string }> = {
   entities: { title: 'Entities', type: 'entities' },
 }
 
-// Fallback modules if API fails
 const FALLBACK_MODULES = ['poi', 'voiceturn', 'cliq', 'new-svc', 'utils']
 
 interface AutocompleteOption {
@@ -52,7 +47,6 @@ export default function CommandInput() {
   const menuOpen = Boolean(menuAnchor)
   const inputRef = useRef<HTMLInputElement>(null)
   const { open } = useDrawer()
-  const { startComposer } = useComposer()
   const { history, addCommand } = useCommandHistory()
   const focusModule = useFocusModule((s) => s.module)
 
@@ -74,7 +68,6 @@ export default function CommandInput() {
   }
 
   const handleShowCommands = () => {
-    // Show all commands in autocomplete (prompts + reports)
     const commandOptions = COMMANDS.map(c => ({ value: c.name, label: c.name, description: c.description }))
     const reportOptions = Object.entries(REPORT_COMMANDS).map(([name, def]) => ({ value: name, label: name, description: def.title }))
     setOptions([...commandOptions, ...reportOptions])
@@ -95,7 +88,6 @@ export default function CommandInput() {
     const atIndex = value.lastIndexOf('@')
 
     if (atIndex >= 0 && atIndex === value.length - 1 || (atIndex >= 0 && !value.slice(atIndex).includes(' '))) {
-      // Module autocomplete after @
       const query = value.slice(atIndex + 1).toLowerCase()
       const filtered = modules
         .filter(m => m.toLowerCase().startsWith(query))
@@ -103,7 +95,6 @@ export default function CommandInput() {
       setOptions(filtered)
       setShowAutocomplete(filtered.length > 0)
     } else if (!value.includes(' ') && !value.includes('@')) {
-      // Command autocomplete at start
       const query = value.toLowerCase()
       const commandOptions = COMMANDS
         .filter(c => c.name.startsWith(query))
@@ -123,10 +114,8 @@ export default function CommandInput() {
   const handleSelect = (option: AutocompleteOption) => {
     const atIndex = value.lastIndexOf('@')
     if (atIndex >= 0 && !value.slice(atIndex).includes(' ')) {
-      // Replace module part
       setValue(value.slice(0, atIndex) + '@' + option.value + ' ')
     } else {
-      // Replace command part
       setValue(option.value + ' ')
     }
     setShowAutocomplete(false)
@@ -158,7 +147,6 @@ export default function CommandInput() {
       }
     }
 
-    // History navigation (only when autocomplete is not showing)
     if (!showAutocomplete && history.length > 0) {
       if (e.key === 'ArrowUp') {
         e.preventDefault()
@@ -201,12 +189,10 @@ export default function CommandInput() {
     const parts = trimmed.split(/\s+/)
     const command = parts[0]
     const moduleMatch = trimmed.match(/@(\S+)/)
-    // Use focus module as default if no module specified
     const module = moduleMatch ? moduleMatch[1] : (focusModule || '')
 
     if (!command) return
 
-    // Add to history
     addCommand(trimmed)
     setHistoryIndex(-1)
     setSavedInput('')
@@ -225,35 +211,25 @@ export default function CommandInput() {
       return
     }
 
-    // Check if this command has slots (composable)
-    const commandDef = COMMANDS.find(c => c.name === command)
-    if (commandDef?.hasSlots) {
-      // Start composer mode - fetch schema from API
-      try {
-        const schema = await api.getComposerSchema(command)
-        startComposer(command, module, schema)
-      } catch {
-        // Fallback: start with empty schema, UI will show "no slots"
-        startComposer(command, module)
-      }
-      setValue('')
-      return
-    }
-
-    // Simple command - generate prompt directly
+    // Preview the command expansion
     setLoading(true)
     try {
-      const result = await api.generatePrompt({ command, module })
+      const preview = await api.previewCommand({ command, module })
+      const title = module
+        ? `poi ${command} -m ${module}`
+        : `poi ${command}`
+
       open({
-        title: result.title || `/${command} @${module}`,
-        content: result.prompt,
-        mode: 'output',
+        title,
+        content: '',
+        mode: 'command-preview',
+        commandPreview: preview,
       })
       setValue('')
     } catch {
       open({
-        title: `/${command}${module ? ` @${module}` : ''}`,
-        content: `# ${command}${module ? ` ${module}` : ''}\n\n(API unavailable - showing placeholder)`,
+        title: `poi ${command}${module ? ` -m ${module}` : ''}`,
+        content: `# ${command}${module ? ` ${module}` : ''}\n\n(API unavailable)`,
         mode: 'output',
       })
       setValue('')
@@ -264,7 +240,6 @@ export default function CommandInput() {
 
   return (
     <Box sx={{ position: 'relative' }}>
-      {/* Autocomplete dropdown (shows above input) */}
       {showAutocomplete && (
         <Paper
           elevation={8}
@@ -322,7 +297,6 @@ export default function CommandInput() {
         </Paper>
       )}
 
-      {/* Input */}
       <Box
         sx={{
           display: 'flex',
