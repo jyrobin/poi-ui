@@ -1,7 +1,7 @@
 module:
   name: poi-ui
   path: poi-ui
-  description: React web interface for POI - provides visual dashboard for documentation status, prompt suggestions, and command execution
+  description: React web dashboard for POI - shows workspace status, command suggestions, command previews, reports, and recipes
   status: active
 
 tags:
@@ -10,8 +10,9 @@ tags:
   - web-ui
   - mui
   - zustand
-  - sse
+  - polling
   - vite
+  - dashboard
 
 dependencies:
   uses:
@@ -29,15 +30,29 @@ entities:
     tags:
       - api
       - http
-    description: Typed REST client for POI API endpoints
+    description: Typed REST client for POI API endpoints (session, modules, suggestions, preview, recipes, reports)
 
-  - name: useSSE
-    file: src/api/useSSE.ts
+  - name: usePolling
+    file: src/api/usePolling.ts
     tags:
-      - sse
-      - realtime
+      - polling
       - hook
-    description: SSE connection hook with reconnection and event store
+      - state
+    description: Periodic REST polling hook that fetches /api/session and populates session data store
+
+  - name: useSessionDataStore
+    file: src/api/usePolling.ts
+    tags:
+      - state
+      - zustand
+    description: Zustand store holding server data (status, suggestions, workspace) populated by polling
+
+  - name: usePollingStore
+    file: src/api/usePolling.ts
+    tags:
+      - state
+      - zustand
+    description: Zustand store for connection state and notifications (UI-local)
 
   - name: useDrawer
     file: src/hooks/useDrawer.ts
@@ -45,43 +60,70 @@ entities:
       - state
       - drawer
       - hook
-    description: Zustand store for drawer open/close state and content
-
-  - name: useStatus
-    file: src/hooks/useStatus.ts
-    tags:
-      - state
-      - status
-      - hook
-    description: Workspace status from API with SSE update subscription
+    description: Zustand store for drawer open/close state, content mode, and viewer data
 
   - name: AppShell
     file: src/components/AppShell.tsx
     tags:
       - layout
       - component
-    description: Main layout with responsive command panel and drawer
+    description: Main layout with responsive command panel and content drawer
 
   - name: CommandPanel
     file: src/components/CommandPanel.tsx
     tags:
       - component
       - panel
-    description: Left panel containing status, suggestions, and composer blocks
+    description: Left panel with header, status block, suggestions block, command input, and menus for modules/recipes/reports
 
   - name: ContentDrawer
     file: src/components/ContentDrawer.tsx
     tags:
       - component
       - drawer
-    description: Right drawer for displaying prompts, module details, and actions
+    description: Right drawer routing to viewers based on mode (modules, module, report, command-preview, recipes, output)
+
+  - name: CommandInput
+    file: src/components/CommandInput.tsx
+    tags:
+      - component
+      - input
+    description: Command entry with autocomplete for commands and @module references
+
+  - name: CommandPreview
+    file: src/viewers/CommandPreview.tsx
+    tags:
+      - component
+      - viewer
+    description: Sectioned command expansion viewer with provenance headers, token stats, and clipboard copy
 
   - name: SuggestionsBlock
     file: src/blocks/SuggestionsBlock.tsx
     tags:
       - component
       - suggestions
-    description: Displays ranked prompt suggestions with click-to-execute
+    description: Displays ranked command suggestions; click triggers command preview in drawer
+
+  - name: StatusBlock
+    file: src/blocks/StatusBlock.tsx
+    tags:
+      - component
+      - status
+    description: Documentation coverage bar with documented/stale/gap chips and clickable module links
+
+  - name: RecipesViewer
+    file: src/viewers/RecipesViewer.tsx
+    tags:
+      - component
+      - viewer
+    description: Lists configured multi-step workflow recipes with step details
+
+  - name: ReportViewer
+    file: src/viewers/ReportViewer.tsx
+    tags:
+      - component
+      - viewer
+    description: Renders health, coverage, deps, tags, gotchas, and entities reports
 
   - name: createAppTheme
     file: src/theme/index.ts
@@ -99,35 +141,32 @@ gotchas:
     summary: API calls use relative URLs that require Vite proxy configuration
     section: Vite Proxy Required for API Calls
 
-  - id: sse-event-names
+  - id: go-null-slices
     tags:
-      - sse
-      - events
-    summary: SSE event listener names must exactly match server event names
-    section: SSE Events Must Match Server Event Names
+      - api
+      - go
+      - json
+    summary: Go nil slices marshal as JSON null, not []; use ?? [] in UI code
+    section: Go API Returns null for Empty Slices
 
-  - id: zustand-getstate
+  - id: polling-vs-session-store
     tags:
       - zustand
       - state
-      - closures
-    summary: Use getState() in callbacks to avoid stale closure issues
-    section: Zustand Store Access in Event Handlers
+      - architecture
+    summary: usePollingStore holds UI-local state; useSessionDataStore holds server data from polling
+    section: Polling Store vs Session Data Store
 
-  - id: drawer-action-update
+  - id: drawer-mode-fields
     tags:
       - drawer
       - state
-    summary: Drawer actions must use updateContent from store to update displayed content
-    section: Drawer Action Must Update Content via Store
+    summary: Each drawer mode expects specific fields; mismatched mode/fields shows "No content selected"
+    section: Drawer Content Must Match Mode
 
-evaluation:
-  architecture_match: 0.90
-  boundary_clarity: A
-  dependencies_accuracy: 0.95
-  evaluated_at: "2026-01-09T00:00:00Z"
-  evaluated_by: claude-opus-4
-  key_types_coverage: 0.90
-  missing_docs: []
-  purpose_accuracy: 0.95
-  summary: Complete documentation for React web UI including architecture, gotchas, and key components
+  - id: focus-module-default
+    tags:
+      - commands
+      - state
+    summary: Commands without @module use the focus module as default; clicking suggestions sets focus
+    section: Focus Module Affects Commands
